@@ -2,7 +2,61 @@
 
 Saat ini Smart Kasir masih berupa POS ritel: pilih barang → bayar → stok berkurang. Untuk kafe, ada beberapa kebutuhan inti yang belum ada. Dokumen ini merangkum fitur yang perlu ditambahkan, diurutkan berdasarkan prioritas, dengan mempertimbangkan modul yang sudah ada (produk, kategori, shift, transaksi, stok masuk, pengeluaran, setting).
 
-**Alur kafe (dikonfirmasi):** pelanggan pesan di kasir → **bayar di depan atau bayar di akhir (open bill)** → mendapat nomor antrean → barista membuat pesanan → **pesanan diantar ke meja**.
+**Alur kafe (dikonfirmasi):** pelanggan pesan di kasir → **bayar di depan atau bayar di akhir (open bill)** → mendapat nomor antrean → barista/kitchen membuat pesanan → **pesanan diantar ke meja**.
+
+---
+
+## Ringkasan Progres (per 21 Nov 2026)
+
+| # | Fitur | Status |
+|---|---|---|
+| 0 | Gambar produk (form, katalog, kasir, keranjang) | ✅ Selesai |
+| 1 | Varian & modifier menu | ✅ Selesai |
+| 2 | Tipe pesanan, meja, nama pelanggan & nomor antrean | ✅ Selesai |
+| 3 | Tiket station Barista & Kitchen | ✅ Selesai |
+| 4 | Pajak (PB1) & service charge | ✅ Selesai |
+| 5 | Stok bahan baku | 🟡 Master selesai, resep belum |
+| 6 | Open bill & split bill | ✅ Selesai |
+| 7 | Role Barista & Kitchen | ✅ Selesai |
+| 8 | Void & refund dengan PIN supervisor | ✅ Selesai (transaksi lunas) |
+| 9 | Laporan khusus kafe | 🟡 Inti selesai, pemakaian bahan menunggu resep |
+| — | Desain ulang UI/UX bernuansa kafe | ✅ Selesai |
+
+**Kode:** branch `feature/cafe-pos` di GitHub (belum di-merge ke `main`). Pengembangan sekarang berjalan langsung di localhost (PHP + MySQL), tanpa Docker — lihat `README.md`.
+
+### Menjalankan setelah update
+```bash
+php artisan migrate
+php artisan storage:link            # agar foto produk tampil
+php artisan db:seed --class=ModifierSeeder    # opsional: contoh varian & modifier
+php artisan db:seed --class=CafeTableSeeder   # opsional: contoh meja
+npm run build
+```
+Atur **PIN Supervisor**, tarif pajak dan service charge di menu **Pengaturan** sebelum dipakai.
+
+---
+
+## Desain UI/UX "Kedai" — ✅ Selesai (21 Nov 2026)
+- **Palet kafe**: latar krem susu, aksen espresso & karamel, hijau sage (berhasil), terakota (bahaya). Variabel Bootstrap ditimpa di `resources/css/app.css`, sehingga semua halaman ikut berubah.
+- **Tipografi**: *Plus Jakarta Sans* untuk teks, *Fraunces* untuk judul, nama brand, dan angka total.
+- **Layout**: sidebar cokelat gelap dengan menu berbahasa sehari-hari (Beranda, Kasir, Daftar Menu, Tim & Akses), header dengan sapaan sesuai jam perangkat dan avatar inisial.
+- **Login**: tampilan dua kolom dengan panel suasana kafe, tombol lihat kata sandi, dan akun demo.
+- **Beranda**: banner sambutan gelap berisi ringkasan transaksi & omzet hari ini.
+- **Kasir**:
+  - Kartu menu tanpa garis kaku; menu tanpa foto memakai ilustrasi sesuai jenis (minuman / makanan / barang umum); badge "Sisa n" / "Habis".
+  - Kategori sebagai chip dengan jumlah menu, pencarian berbentuk pill, pesan "menu tidak ditemukan".
+  - Panel **Pesanan** bergaya nota: tipe pesanan berupa *segmented control*, baris item dengan stepper jumlah.
+  - Tombol **Bayar Nanti** dan **Bayar · Rp total** selalu terlihat; detail pembayaran (diskon, tunai/QRIS, uang cepat, kembalian) pindah ke **lembar pembayaran** — sebelumnya tombol bayar tersembunyi di bawah layar.
+  - Kartu menu bisa dipilih dengan keyboard (Enter/Spasi); Enter di kolom uang langsung menyelesaikan pembayaran.
+
+---
+
+## Tahap 0 — Fondasi Tampilan
+
+### 0. Gambar Produk — ✅ Selesai (21 Nov 2026)
+- Upload foto (JPG/PNG/WEBP, maks. 2 MB) dengan preview langsung; opsi **hapus foto** di halaman edit.
+- Foto tampil di katalog produk, kartu menu kasir, dan thumbnail keranjang; menu tanpa foto memakai ikon pengganti.
+- Wajib menjalankan `php artisan storage:link` sekali di setiap server.
 
 ---
 
@@ -25,7 +79,7 @@ Hampir setiap minuman kafe punya pilihan. Dibutuhkan:
 
 ### 3. Layar Barista / Tiket Pesanan — ✅ Selesai (21 Nov 2026)
 - Setelah pembayaran, pesanan otomatis masuk ke **layar tiket** dan dipisahkan per **station**: Barista (minuman) atau Kitchen (makanan).
-- Station menu dapat diatur dari Master Produk; item bahan baku tidak masuk POS/tiket.
+- Station ditentukan otomatis dari kategori: **Minuman → Barista**, **Makanan & Snack → Kitchen**; kategori lain dapat diatur manual dari Master Produk. Item bahan baku tidak masuk POS/tiket.
 - Tersedia halaman Tiket Barista dan Tiket Kitchen dengan refresh manual, menampilkan nomor antrean, meja/nama, modifier, dan catatan item.
 - Barista/Kitchen dapat menandai setiap item "menunggu" → "dikerjakan" → "siap", lalu nomor antrean/nama pelanggan dipanggil.
 - Opsional: **layar antrean untuk pelanggan** (menampilkan nomor yang sedang dibuat & siap diambil).
@@ -52,10 +106,11 @@ Kafe menjual minuman racikan, bukan barang jadi. Untuk tahap ini tersedia:
 - Modul stok masuk dan penyesuaian stok yang sudah ada dapat digunakan ulang untuk bahan baku.
 
 ### 6. Open Bill (bayar nanti) — ✅ Selesai (21 Nov 2026)
-Tidak sepenting di rumah makan, tapi berguna untuk pelanggan yang duduk lama:
-- Simpan pesanan sebagai bill terbuka per meja / nama, lalu tambah pesanan susulan.
-- Bayar di akhir, termasuk **split bill** sederhana.
-- **Hold order**: simpan sementara pesanan yang belum selesai, lalu lanjutkan melayani pelanggan berikutnya.
+- Tombol **Bayar Nanti** menyimpan pesanan sebagai bill terbuka per meja (dine-in) atau per nama pelanggan (take away / online). Stok langsung berkurang dan nomor antrean keluar.
+- Satu meja hanya boleh punya satu bill terbuka; memilih meja yang terisi menawarkan **tambah pesanan ke bill tersebut**.
+- Tombol **Bill Terbuka** menampilkan semua bill (meja, total, lama duduk) untuk tambah pesanan, cetak bill sementara, bayar, atau batalkan (alasan wajib, stok dikembalikan).
+- **Split bill**: bayar sebagian item/jumlah; sisanya tetap terbuka.
+- Omzet dihitung saat **dibayar** (`paid_at`), dan uang masuk ke shift kasir yang menerima pembayaran.
 
 ### 7. Role Pengguna Baru — ✅ Selesai (21 Nov 2026)
 - **Barista**: hanya mengakses layar tiket Barista.
@@ -87,24 +142,36 @@ Tidak sepenting di rumah makan, tapi berguna untuk pelanggan yang duduk lama:
 
 ---
 
-## Rekomendasi Urutan Pengerjaan
+## Urutan Pengerjaan
 
-| Urutan | Fitur | Alasan |
+| Urutan | Fitur | Status |
 |---|---|---|
-| 1 ✅ | Varian & modifier (#1) | Kebutuhan utama kafe; mengubah struktur item pesanan |
-| 2 ✅ | Tipe pesanan, meja, nama & nomor antrean (#2) | Fondasi alur pesanan kafe |
-| 3 ✅ | Open bill per meja & split bill (#6) | **Dinaikkan**: kafe melayani bayar di depan *dan* bayar di akhir |
-| 4 ✅ | Pajak & service charge (#4) | Mempengaruhi perhitungan total |
-| 5 ✅ | Layar barista / tiket station (#3) | Bergantung pada data pesanan & modifier |
-| 6 | Resep & pemakaian bahan baku (#5 lanjutan) | Bergantung pada data menu, varian & modifier |
-
-Poin #1, #2, dan #4 sebaiknya dikerjakan lebih dulu karena mengubah struktur data inti (tabel pesanan, item pesanan, modifier). Jika ditunda, proses migrasi data akan lebih rumit.
+| 1 | Varian & modifier (#1) | ✅ |
+| 2 | Tipe pesanan, meja, nama & nomor antrean (#2) | ✅ |
+| 3 | Open bill per meja & split bill (#6) — dinaikkan karena kafe melayani bayar di depan *dan* di akhir | ✅ |
+| 4 | Pajak & service charge (#4) | ✅ |
+| 5 | Tiket station Barista & Kitchen (#3) + role (#7) | ✅ |
+| 6 | Void & refund (#8), laporan kafe (#9) | ✅ |
+| 7 | Desain ulang UI/UX bernuansa kafe | ✅ |
+| 8 | Resep & pemakaian bahan baku (#5 lanjutan) | ⏳ |
+| 9 | Hapus/void item pada bill terbuka dengan PIN | ⏳ |
 
 ---
 
-## Pertanyaan yang Perlu Dijawab Sebelum Mulai
+## Batasan yang Masih Ada
 
-1. **Alur bayar**: selalu bayar di depan, atau ada pelanggan dine-in yang bayar di akhir? (Menentukan seberapa penting open bill.)
-2. **Pesanan diantar atau diambil?** Diantar ke meja (perlu nomor meja) atau dipanggil di counter (cukup nama / nomor antrean).
-3. **Ada menu makanan berat?** Jika ya, layar barista perlu dipisah dengan station dapur.
-4. **Satu outlet atau multi-cabang?** Jika ada rencana multi-cabang, struktur data sebaiknya disiapkan sejak awal.
+- **Item di bill terbuka belum bisa dihapus/diubah satu per satu.** Jika salah input, saat ini harus membatalkan seluruh bill. Void dengan PIN baru berlaku untuk transaksi yang sudah lunas (dari halaman Laporan).
+- **Membatalkan bill terbuka belum memerlukan PIN supervisor**, hanya alasan yang tercatat.
+- **Stok masih dihitung per menu**, belum dari resep bahan baku.
+- **QRIS masih statis** (placeholder), belum terhubung ke payment gateway.
+- Tiket station memakai **refresh manual**, belum otomatis/real-time.
+- **Timezone aplikasi masih UTC.** Laporan "hari ini" dan tanggal transaksi dihitung dengan jam UTC, sehingga penjualan pukul 00.00–07.00 WIB tercatat di tanggal sebelumnya. Perlu diputuskan sebelum dipakai produksi (ubah ke `Asia/Jakarta` + sesuaikan data lama).
+
+---
+
+## Keputusan yang Sudah Diambil
+
+1. **Alur bayar:** keduanya — bayar di depan dan bayar di akhir (open bill).
+2. **Penyajian:** pesanan **diantar ke meja**, sehingga dine-in wajib memilih meja.
+3. **Menu makanan:** ada; tiket dipisah antara station Barista dan Kitchen.
+4. **Outlet:** belum diputuskan — jika ada rencana multi-cabang, struktur data perlu disiapkan sebelum fitur berikutnya.
