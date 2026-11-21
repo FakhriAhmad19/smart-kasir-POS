@@ -1,55 +1,41 @@
 <x-app-layout>
-    <x-slot name="title">Dashboard Utama - Smart Kasir</x-slot>
-    <x-slot name="header">Ringkasan Eksekutif & Penjualan Toko</x-slot>
+    <x-slot name="title">Beranda - Smart Kasir</x-slot>
+    <x-slot name="header">Ringkasan Hari Ini</x-slot>
 
     <!-- Welcome Banner -->
-    <div class="card mb-4" style="border: 1px solid var(--border-color); border-radius: 10px;">
-        <div class="card-body p-4">
-            <div class="row align-items-center g-3">
-                <div class="col-lg-8">
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                        <span class="badge fw-semibold" style="background: #eef2fb; color: #1d4ed8;">
-                            <i class="bi bi-shop me-1"></i>
-                            {{ \App\Models\Setting::get('store_name', 'SMART KASIR UMKM') }}
-                        </span>
-                        <span class="badge fw-semibold" style="background: #ecfdf3; color: #16a34a;">
-                            <i class="bi bi-circle-fill me-1" style="font-size: 0.5rem;"></i> Sistem Kasir Aktif
-                        </span>
-                    </div>
-                    <h2 class="fw-bold mb-1 text-dark" style="font-size: 1.5rem;">
-                        Selamat datang, {{ auth()->user()->name }}
-                    </h2>
-                    <p class="text-secondary mb-3" style="max-width: 600px;">
-                        Pantau omset harian, estimasi laba bersih, kontrol stok gudang, dan kelola transaksi
-                        toko Anda secara realtime.
-                    </p>
-                    <div class="d-flex flex-wrap gap-2">
-                        @can('process-transaction')
-                            @php
-                                $hasShift = \App\Models\Shift::where('app_user_id', auth()->id())
-                                    ->where('status', 'open')
-                                    ->exists();
-                            @endphp
-                            @if ($hasShift)
-                                <a href="{{ route('pos.index') }}" class="btn btn-primary btn-touch px-3 fw-semibold gap-2">
-                                    <i class="bi bi-calculator-fill"></i> Transaksi Kasir Baru
-                                </a>
-                            @else
-                                <a href="{{ route('shifts.open_form') }}"
-                                    class="btn btn-outline-primary btn-touch px-3 fw-semibold gap-2"
-                                    title="Buka shift kasir terlebih dahulu">
-                                    <i class="bi bi-clock-history"></i> Buka Shift
-                                </a>
-                            @endif
-                        @endcan
-                        @can('manage-shifts')
-                            <a href="{{ route('shifts.index') }}"
-                                class="btn btn-light btn-touch px-3 fw-semibold gap-2">
-                                <i class="bi bi-clock-history"></i> Shift & Audit Laci
-                            </a>
-                        @endcan
-                    </div>
-                </div>
+    @php
+        $hasShift = auth()->user()->can('process-transaction')
+            && \App\Models\Shift::where('app_user_id', auth()->id())->where('status', 'open')->exists();
+    @endphp
+    <div class="hero-cafe p-4 p-md-5 mb-4">
+        <div class="position-relative" style="max-width: 640px; z-index: 1;">
+            <span class="chip mb-3" style="background: rgba(255,246,234,.1); border-color: rgba(255,246,234,.18); color: #f6d3a6;">
+                <i class="bi bi-cup-hot-fill"></i> {{ \App\Models\Setting::get('store_name', 'Smart Kasir') }}
+            </span>
+            <h2 class="mb-2" style="font-size: clamp(1.5rem, 3vw, 2.1rem);">
+                <span class="js-greeting">Halo</span>, {{ \Illuminate\Support\Str::of(auth()->user()->name)->before(' (') }}!
+            </h2>
+            <p class="text-muted mb-4">
+                Hari ini sudah <b style="color:#fff6ea">{{ $todayTransactionsCount }} transaksi</b> dengan omzet
+                <b style="color:#fff6ea">Rp{{ number_format($todayRevenue, 0, ',', '.') }}</b>. Semoga kedainya ramai ☕
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+                @can('process-transaction')
+                    @if ($hasShift)
+                        <a href="{{ route('pos.index') }}" class="btn btn-warning btn-touch px-3 gap-2">
+                            <i class="bi bi-cup-straw"></i> Mulai Melayani
+                        </a>
+                    @else
+                        <a href="{{ route('shifts.open_form') }}" class="btn btn-warning btn-touch px-3 gap-2">
+                            <i class="bi bi-clock-history"></i> Buka Shift
+                        </a>
+                    @endif
+                @endcan
+                @can('manage-shifts')
+                    <a href="{{ route('shifts.index') }}" class="btn btn-touch px-3 gap-2" style="background: rgba(255,246,234,.1); color: #fff6ea; border: 1px solid rgba(255,246,234,.2);">
+                        <i class="bi bi-clock-history"></i> Shift & Laci
+                    </a>
+                @endcan
             </div>
         </div>
     </div>
@@ -66,7 +52,7 @@
                             Rp{{ number_format($todayRevenue, 0, ',', '.') }}</h3>
                     </div>
                     <div class="rounded-4 p-3 d-flex align-items-center justify-content-center shadow-sm"
-                        style="width: 54px; height: 54px; background: #eef2fb; color: #1d4ed8;">
+                        style="width: 54px; height: 54px; background: var(--caramel-100); color: var(--roast-600);">
                         <i class="bi bi-cash-stack fs-3"></i>
                     </div>
                 </div>
