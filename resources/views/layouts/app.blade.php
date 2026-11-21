@@ -77,10 +77,12 @@
                 <a href="{{ route('raw-materials.index') }}" class="sidebar-link {{ request()->routeIs('raw-materials.*') ? 'active' : '' }}">
                     <i class="bi bi-droplet-half"></i> <span>Master Bahan Baku</span>
                 </a>
-                @can('process-transaction')
+                @can('view-barista-tickets')
                 <a href="{{ route('tickets.index', 'barista') }}" class="sidebar-link {{ request()->routeIs('tickets.*') && request()->route('station') === 'barista' ? 'active' : '' }}">
                     <i class="bi bi-cup-hot-fill"></i> <span>Tiket Barista</span>
                 </a>
+                @endcan
+                @can('view-kitchen-tickets')
                 <a href="{{ route('tickets.index', 'kitchen') }}" class="sidebar-link {{ request()->routeIs('tickets.*') && request()->route('station') === 'kitchen' ? 'active' : '' }}">
                     <i class="bi bi-fire"></i> <span>Tiket Kitchen</span>
                 </a>

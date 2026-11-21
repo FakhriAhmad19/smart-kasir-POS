@@ -132,6 +132,74 @@ class OrderService
         });
     }
 
+    /** Refund a fully paid transaction and return every sold item to stock. */
+    public function refund(Transaction $transaction, int $userId, string $reason): Transaction
+    {
+        return DB::transaction(function () use ($transaction, $userId, $reason) {
+            $transaction = Transaction::whereKey($transaction->id)->lockForUpdate()->first();
+            if (! $transaction || $transaction->status !== Transaction::STATUS_PAID) {
+                throw new OrderException('Hanya transaksi yang sudah dibayar yang dapat direfund.');
+            }
+
+            $details = $transaction->details()->lockForUpdate()->get();
+            foreach ($details as $detail) {
+                Product::whereKey($detail->app_product_id)->increment('stock', $detail->quantity);
+                $detail->update([
+                    'voided_quantity' => $detail->quantity,
+                    'voided_at' => now(),
+                    'voided_by' => $userId,
+                    'void_reason' => $reason,
+                    'quantity' => 0,
+                    'subtotal' => 0,
+                ]);
+            }
+
+            $transaction->update([
+                'status' => Transaction::STATUS_CANCELLED,
+                'cancelled_at' => now(),
+                'cancelled_by' => $userId,
+                'cancel_reason' => $reason,
+                'refunded_amount' => $transaction->final_amount,
+                'refunded_at' => now(),
+                'refunded_by' => $userId,
+            ]);
+
+            return $transaction;
+        });
+    }
+
+    /** Void part of one paid line and return its stock. */
+    public function voidItem(TransactionDetail $detail, int $quantity, int $userId, string $reason): Transaction
+    {
+        return DB::transaction(function () use ($detail, $quantity, $userId, $reason) {
+            $detail = TransactionDetail::whereKey($detail->id)->lockForUpdate()->first();
+            $transaction = Transaction::whereKey($detail?->app_transaction_id)->lockForUpdate()->first();
+            if (! $detail || ! $transaction || $transaction->status !== Transaction::STATUS_PAID) {
+                throw new OrderException('Hanya item dari transaksi yang sudah dibayar yang dapat di-void.');
+            }
+            if ($quantity < 1 || $quantity > $detail->quantity) {
+                throw new OrderException('Jumlah item void tidak valid.');
+            }
+
+            $lineAmount = (float) $detail->selling_price * $quantity;
+            Product::whereKey($detail->app_product_id)->increment('stock', $quantity);
+            $remaining = $detail->quantity - $quantity;
+            $detail->update([
+                'quantity' => $remaining,
+                'voided_quantity' => (int) $detail->voided_quantity + $quantity,
+                'voided_at' => now(),
+                'voided_by' => $userId,
+                'void_reason' => $reason,
+                'subtotal' => (float) $detail->selling_price * $remaining,
+            ]);
+
+            $transaction->update(['refunded_amount' => (float) $transaction->refunded_amount + $lineAmount]);
+            $this->recalculate($transaction->fresh());
+
+            return $transaction;
+        });
+    }
+
     // ------------------------------------------------------------------
 
     /**
@@ -175,6 +243,7 @@ class OrderService
                 'modifier_total' => $modifierTotal,
                 'notes' => $notes !== '' ? $notes : null,
                 'station' => $product->station ?: 'barista',
+                'ticket_status' => TransactionDetail::TICKET_PENDING,
                 'subtotal' => $lineSubtotal,
             ];
         }
@@ -192,9 +261,14 @@ class OrderService
     private function recalculate(Transaction $trx): void
     {
         $total = (float) $trx->details()->sum('subtotal');
+        $discount = min((float) $trx->discount_amount, $total);
+        $pricing = $this->calculateCharges($total, $discount);
         $trx->update([
             'total_amount' => $total,
-            'final_amount' => max(0, $total - (float) $trx->discount_amount),
+            'discount_amount' => $discount,
+            'tax_amount' => $pricing['tax'],
+            'service_charge_amount' => $pricing['service'],
+            'final_amount' => $pricing['final'],
         ]);
     }
 
@@ -313,6 +387,7 @@ class OrderService
                     'modifier_total' => $detail->modifier_total,
                     'notes' => $detail->notes,
                     'station' => $detail->station ?: 'barista',
+                    'ticket_status' => $detail->ticket_status ?: TransactionDetail::TICKET_PENDING,
                     'subtotal' => (float) $detail->selling_price * $qty,
                 ]);
             }

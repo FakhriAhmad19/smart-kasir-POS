@@ -75,6 +75,13 @@
                             <div class="form-text">Jika dicentang, pajak hanya ditampilkan sebagai bagian dari total, bukan ditambahkan lagi.</div>
                         </div>
 
+                        <hr class="my-4">
+                        <h6 class="fw-bold text-dark mb-3">Otorisasi Void & Refund</h6>
+                        <label for="supervisor_pin" class="form-label fw-semibold">PIN Supervisor</label>
+                        <input type="password" inputmode="numeric" name="supervisor_pin" id="supervisor_pin" class="form-control @error('supervisor_pin') is-invalid @enderror" minlength="4" maxlength="8" placeholder="{{ $settings['has_supervisor_pin'] ? 'PIN sudah tersimpan; isi untuk mengganti' : 'Buat PIN 4–8 digit' }}">
+                        <div class="form-text">PIN ini wajib untuk membatalkan transaksi atau void item setelah pembayaran.</div>
+                        @error('supervisor_pin')<div class="invalid-feedback">{{ $message }}</div>@enderror
+
                         <div class="d-flex justify-content-end">
                             <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm">
                                 <i class="bi bi-save me-1"></i> Simpan Perubahan Pengaturan

@@ -36,6 +36,9 @@ class Transaction extends Model
         'payment_method',
         'paid_amount',
         'change_amount',
+        'refunded_amount',
+        'refunded_at',
+        'refunded_by',
         'notes',
     ];
 
@@ -62,6 +65,8 @@ class Transaction extends Model
         'final_amount' => 'decimal:2',
         'paid_amount' => 'decimal:2',
         'change_amount' => 'decimal:2',
+        'refunded_amount' => 'decimal:2',
+        'refunded_at' => 'datetime',
     ];
 
     public function user()

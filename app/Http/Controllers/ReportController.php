@@ -22,6 +22,7 @@ class ReportController extends Controller
             ->withQueryString();
 
         $summary = $salesReport->summary($startDate, $endDate, $paymentMethod, $userId);
+        $cafeBreakdown = $salesReport->cafeBreakdown($startDate, $endDate, $paymentMethod, $userId);
         $totalRevenue = $summary['totalRevenue'];
         $totalTransactions = $summary['totalTransactions'];
         $totalDiscount = $summary['totalDiscount'];
@@ -43,7 +44,8 @@ class ReportController extends Controller
             'totalProfit',
             'totalExpenses',
             'netProfit',
-            'cashiers'
+            'cashiers',
+            'cafeBreakdown'
         ));
     }
 

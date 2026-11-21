@@ -79,4 +79,48 @@ class SalesReportService
             'netProfit'
         );
     }
+
+    /** Cafe-specific operational breakdowns from the same paid filter set. */
+    public function cafeBreakdown(
+        string $startDate,
+        string $endDate,
+        ?string $paymentMethod = null,
+        ?string $userId = null
+    ): array {
+        $transactions = $this->transactionsQuery($startDate, $endDate, $paymentMethod, $userId)->get();
+        $details = $transactions->flatMap->details;
+
+        $hourlySales = $transactions->groupBy(fn ($trx) => $trx->paid_at?->format('H:00') ?? '-')->map(fn ($group) => [
+            'transactions' => $group->count(),
+            'revenue' => $group->sum('final_amount'),
+        ])->sortKeys();
+
+        $orderTypes = $transactions->groupBy('order_type')->map(fn ($group) => [
+            'label' => Transaction::ORDER_TYPES[$group->first()->order_type] ?? $group->first()->order_type,
+            'transactions' => $group->count(),
+            'revenue' => $group->sum('final_amount'),
+        ]);
+
+        $topProducts = $details->filter(fn ($detail) => $detail->quantity > 0)->groupBy(fn ($detail) => $detail->product->name ?? 'Produk')->map(fn ($group) => [
+            'quantity' => $group->sum('quantity'),
+            'revenue' => $group->sum('subtotal'),
+        ])->sortByDesc('quantity')->take(10);
+
+        $modifierCounts = [];
+        foreach ($details as $detail) {
+            foreach ($detail->modifiers ?? [] as $modifier) {
+                $name = ($modifier['group'] ?? 'Modifier') . ': ' . ($modifier['option'] ?? '-');
+                $modifierCounts[$name] = ($modifierCounts[$name] ?? 0) + (int) $detail->quantity;
+            }
+        }
+        arsort($modifierCounts);
+
+        return [
+            'cupsSold' => $details->sum('quantity'),
+            'hourlySales' => $hourlySales,
+            'orderTypes' => $orderTypes,
+            'topProducts' => $topProducts,
+            'topModifiers' => collect($modifierCounts)->take(10),
+        ];
+    }
 }

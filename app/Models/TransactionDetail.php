@@ -15,13 +15,28 @@ class TransactionDetail extends Model
         'app_transaction_id',
         'app_product_id',
         'quantity',
+        'voided_quantity',
         'purchase_price',
         'selling_price',
         'modifiers',
         'modifier_total',
         'notes',
         'station',
+        'ticket_status',
+        'voided_at',
+        'voided_by',
+        'void_reason',
         'subtotal',
+    ];
+
+    public const TICKET_PENDING = 'pending';
+    public const TICKET_PREPARING = 'preparing';
+    public const TICKET_READY = 'ready';
+
+    public const TICKET_STATUSES = [
+        self::TICKET_PENDING => 'Menunggu',
+        self::TICKET_PREPARING => 'Dikerjakan',
+        self::TICKET_READY => 'Siap',
     ];
 
     protected $casts = [
@@ -31,6 +46,8 @@ class TransactionDetail extends Model
         'modifiers' => 'array',
         'modifier_total' => 'decimal:2',
         'quantity' => 'integer',
+        'voided_quantity' => 'integer',
+        'voided_at' => 'datetime',
     ];
 
     public function transaction()

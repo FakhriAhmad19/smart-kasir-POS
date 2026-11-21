@@ -23,11 +23,11 @@ Hampir setiap minuman kafe punya pilihan. Dibutuhkan:
 - **Nomor antrean** otomatis yang reset setiap hari, dicetak di struk.
 - Harga berbeda untuk pesanan online (karena potongan komisi aplikasi) — opsional.
 
-### 3. Layar Barista / Tiket Pesanan — ✅ Tiket station selesai (21 Nov 2026)
+### 3. Layar Barista / Tiket Pesanan — ✅ Selesai (21 Nov 2026)
 - Setelah pembayaran, pesanan otomatis masuk ke **layar tiket** dan dipisahkan per **station**: Barista (minuman) atau Kitchen (makanan).
 - Station menu dapat diatur dari Master Produk; item bahan baku tidak masuk POS/tiket.
 - Tersedia halaman Tiket Barista dan Tiket Kitchen dengan refresh manual, menampilkan nomor antrean, meja/nama, modifier, dan catatan item.
-- Barista menandai pesanan "sedang dibuat" → "siap", lalu nomor antrean/nama pelanggan dipanggil.
+- Barista/Kitchen dapat menandai setiap item "menunggu" → "dikerjakan" → "siap", lalu nomor antrean/nama pelanggan dipanggil.
 - Opsional: **layar antrean untuk pelanggan** (menampilkan nomor yang sedang dibuat & siap diambil).
 - Alternatif lebih murah: **cetak tiket/stiker cup** otomatis (nama, menu, modifier) ke printer bar. Fitur printer Bluetooth sudah ada dan bisa dikembangkan.
 
@@ -57,21 +57,23 @@ Tidak sepenting di rumah makan, tapi berguna untuk pelanggan yang duduk lama:
 - Bayar di akhir, termasuk **split bill** sederhana.
 - **Hold order**: simpan sementara pesanan yang belum selesai, lalu lanjutkan melayani pelanggan berikutnya.
 
-### 7. Role Pengguna Baru
-- **Barista**: hanya mengakses layar barista.
+### 7. Role Pengguna Baru — ✅ Selesai (21 Nov 2026)
+- **Barista**: hanya mengakses layar tiket Barista.
+- **Kitchen**: hanya mengakses layar tiket Kitchen.
 - **Kasir**: input pesanan dan menerima pembayaran.
+- Owner/Admin dapat melihat kedua station dan mengatur akun pengguna.
 - Spatie Permission sudah terpasang, sehingga cukup menambahkan role dan permission baru.
 
-### 8. Void & Refund dengan Otorisasi
-- Pembatalan item / refund setelah dibayar wajib menggunakan **PIN supervisor** dan dicatat alasannya, untuk mencegah kecurangan.
+### 8. Void & Refund dengan Otorisasi — ✅ Selesai (21 Nov 2026)
+- Void item atau refund penuh setelah dibayar wajib menggunakan **PIN supervisor** dan dicatat alasannya.
+- Stok dikembalikan otomatis; transaksi refund tidak lagi masuk laporan penjualan.
 
-### 9. Laporan Khusus Kafe
-- Menu terlaris dan modifier paling sering dipilih (mis. % pelanggan pilih less sugar / oat milk).
-- Penjualan per jam (analisis jam sibuk: pagi, makan siang, sore).
-- Rata-rata nilai transaksi dan jumlah cup terjual per hari.
-- Perbandingan dine-in vs take away vs online.
-- Pemakaian bahan baku vs penjualan (deteksi selisih/pemborosan).
-- Laporan void, refund, dan diskon.
+### 9. Laporan Khusus Kafe — ✅ Core selesai (21 Nov 2026)
+- Menu terlaris dan modifier paling sering dipilih.
+- Penjualan per jam, jumlah item/cup terjual, dan tipe pesanan dine-in/take away/online.
+- Omset, jumlah transaksi, diskon, laba, dan beban tetap tersedia.
+- Laporan void/refund tercatat melalui status dan alasan transaksi/item.
+- Pemakaian bahan baku vs penjualan masih menunggu fitur resep.
 
 ---
 
@@ -93,7 +95,7 @@ Tidak sepenting di rumah makan, tapi berguna untuk pelanggan yang duduk lama:
 | 2 ✅ | Tipe pesanan, meja, nama & nomor antrean (#2) | Fondasi alur pesanan kafe |
 | 3 ✅ | Open bill per meja & split bill (#6) | **Dinaikkan**: kafe melayani bayar di depan *dan* bayar di akhir |
 | 4 ✅ | Pajak & service charge (#4) | Mempengaruhi perhitungan total |
-| 5 | Layar barista / tiket cup (#3) | Bergantung pada data pesanan & modifier |
+| 5 ✅ | Layar barista / tiket station (#3) | Bergantung pada data pesanan & modifier |
 | 6 | Resep & pemakaian bahan baku (#5 lanjutan) | Bergantung pada data menu, varian & modifier |
 
 Poin #1, #2, dan #4 sebaiknya dikerjakan lebih dulu karena mengubah struktur data inti (tabel pesanan, item pesanan, modifier). Jika ditunda, proses migrasi data akan lebih rumit.

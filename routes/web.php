@@ -10,6 +10,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RawMaterialController;
+use App\Http\Controllers\RefundController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\ShiftController;
@@ -83,8 +84,10 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/tickets/{station}', [TicketController::class, 'index'])
         ->whereIn('station', ['barista', 'kitchen'])
-        ->name('tickets.index')
-        ->middleware('can:process-transaction');
+        ->name('tickets.index');
+    Route::patch('/tickets/{station}/{detail}/status', [TicketController::class, 'updateStatus'])
+        ->whereIn('station', ['barista', 'kitchen'])
+        ->name('tickets.status');
 
     // Menu Modifiers & Variants (size, sugar level, toppings, ...)
     Route::resource('modifiers', ModifierGroupController::class)->except(['show'])
@@ -115,6 +118,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/reports/export-csv', [ReportController::class, 'exportCsv'])->name('reports.export_csv');
         Route::get('/reports/export-pdf', [ReportController::class, 'exportPdf'])->name('reports.export_pdf');
         Route::get('/reports/shift-pdf/{shift}', [ReportController::class, 'exportShiftPdf'])->name('reports.shift_pdf');
+    });
+
+    Route::middleware('can:manage-refunds')->group(function () {
+        Route::post('/transactions/{transaction}/refund', [RefundController::class, 'refund'])->name('transactions.refund');
+        Route::post('/transaction-details/{detail}/void', [RefundController::class, 'voidItem'])->name('transaction-details.void');
     });
 
     // User Management

@@ -18,6 +18,7 @@ class SettingSeeder extends Seeder
             'tax_rate' => '0',
             'service_charge_rate' => '0',
             'prices_include_tax' => '0',
+            'supervisor_pin_hash' => null,
         ];
 
         foreach ($defaults as $key => $value) {
