@@ -74,6 +74,25 @@
                 <a href="{{ route('products.index') }}" class="sidebar-link {{ request()->routeIs('products.*') ? 'active' : '' }}">
                     <i class="bi bi-box-seam-fill"></i> <span>Master Produk</span>
                 </a>
+                <a href="{{ route('raw-materials.index') }}" class="sidebar-link {{ request()->routeIs('raw-materials.*') ? 'active' : '' }}">
+                    <i class="bi bi-droplet-half"></i> <span>Master Bahan Baku</span>
+                </a>
+                @can('view-barista-tickets')
+                <a href="{{ route('tickets.index', 'barista') }}" class="sidebar-link {{ request()->routeIs('tickets.*') && request()->route('station') === 'barista' ? 'active' : '' }}">
+                    <i class="bi bi-cup-hot-fill"></i> <span>Tiket Barista</span>
+                </a>
+                @endcan
+                @can('view-kitchen-tickets')
+                <a href="{{ route('tickets.index', 'kitchen') }}" class="sidebar-link {{ request()->routeIs('tickets.*') && request()->route('station') === 'kitchen' ? 'active' : '' }}">
+                    <i class="bi bi-fire"></i> <span>Tiket Kitchen</span>
+                </a>
+                @endcan
+                <a href="{{ route('modifiers.index') }}" class="sidebar-link {{ request()->routeIs('modifiers.*') ? 'active' : '' }}">
+                    <i class="bi bi-sliders"></i> <span>Varian & Modifier</span>
+                </a>
+                <a href="{{ route('tables.index') }}" class="sidebar-link {{ request()->routeIs('tables.*') ? 'active' : '' }}">
+                    <i class="bi bi-grid-3x3-gap-fill"></i> <span>Meja</span>
+                </a>
                 @endcan
 
                 @can('manage-stock-in')
@@ -319,5 +338,6 @@
             });
         });
     </script>
+    @stack('scripts')
 </body>
 </html>

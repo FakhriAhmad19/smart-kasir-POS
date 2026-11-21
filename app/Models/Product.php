@@ -22,6 +22,9 @@ class Product extends Model
         'min_stock',
         'image',
         'is_active',
+        'is_raw_material',
+        'unit',
+        'station',
     ];
 
     protected $casts = [
@@ -30,11 +33,30 @@ class Product extends Model
         'stock' => 'integer',
         'min_stock' => 'integer',
         'is_active' => 'boolean',
+        'is_raw_material' => 'boolean',
     ];
+
+    protected $appends = ['image_url'];
+
+    /**
+     * Public URL of the product photo, or null when no photo is set.
+     */
+    public function getImageUrlAttribute(): ?string
+    {
+        return $this->image ? asset('storage/' . $this->image) : null;
+    }
 
     public function category()
     {
         return $this->belongsTo(Category::class, 'app_category_id');
+    }
+
+    public function modifierGroups()
+    {
+        return $this->belongsToMany(ModifierGroup::class, 'app_product_modifier_group', 'app_product_id', 'app_modifier_group_id')
+            ->withPivot('sort_order')
+            ->orderBy('app_product_modifier_group.sort_order')
+            ->orderBy('app_modifier_groups.sort_order');
     }
 
     public function transactionDetails()

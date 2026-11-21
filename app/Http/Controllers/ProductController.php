@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use App\Models\ModifierGroup;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -12,7 +13,7 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::with('category')->latest();
+        $query = Product::with('category')->where('is_raw_material', false)->latest();
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -40,7 +41,8 @@ class ProductController extends Controller
     public function create()
     {
         $categories = Category::orderBy('name')->get();
-        return view('products.create', compact('categories'));
+        $modifierGroups = ModifierGroup::with('options')->orderBy('sort_order')->orderBy('name')->get();
+        return view('products.create', compact('categories', 'modifierGroups'));
     }
 
     public function store(Request $request)
@@ -54,7 +56,10 @@ class ProductController extends Controller
             'selling_price' => 'required|numeric|min:0',
             'stock' => 'required|integer|min:0',
             'min_stock' => 'required|integer|min:0',
+            'station' => 'nullable|in:barista,kitchen',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'modifier_group_ids' => 'nullable|array',
+            'modifier_group_ids.*' => 'integer|exists:app_modifier_groups,id',
         ]);
 
         $sku = $request->sku ?: 'SKU-' . strtoupper(Str::random(6));
@@ -65,7 +70,8 @@ class ProductController extends Controller
             $imagePath = $request->file('image')->store('products', 'public');
         }
 
-        Product::create([
+        $category = Category::findOrFail($request->app_category_id);
+        $product = Product::create([
             'app_category_id' => $request->app_category_id,
             'sku' => $sku,
             'barcode' => $barcode,
@@ -76,15 +82,21 @@ class ProductController extends Controller
             'min_stock' => $request->min_stock,
             'image' => $imagePath,
             'is_active' => $request->has('is_active') ? true : false,
+            'station' => $this->stationForCategory($category, $request->input('station')),
         ]);
+
+        $product->modifierGroups()->sync($this->modifierSyncData($request));
 
         return redirect()->route('products.index')->with('success', 'Produk berhasil ditambahkan.');
     }
 
     public function edit(Product $product)
     {
+        abort_unless(! $product->is_raw_material, 404);
         $categories = Category::orderBy('name')->get();
-        return view('products.edit', compact('product', 'categories'));
+        $modifierGroups = ModifierGroup::with('options')->orderBy('sort_order')->orderBy('name')->get();
+        $product->load('modifierGroups');
+        return view('products.edit', compact('product', 'categories', 'modifierGroups'));
     }
 
     public function update(Request $request, Product $product)
@@ -98,7 +110,11 @@ class ProductController extends Controller
             'selling_price' => 'required|numeric|min:0',
             'stock' => 'required|integer|min:0',
             'min_stock' => 'required|integer|min:0',
+            'station' => 'nullable|in:barista,kitchen',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'remove_image' => 'nullable|boolean',
+            'modifier_group_ids' => 'nullable|array',
+            'modifier_group_ids.*' => 'integer|exists:app_modifier_groups,id',
         ]);
 
         if ($request->hasFile('image')) {
@@ -108,6 +124,9 @@ class ProductController extends Controller
             }
             $imagePath = $request->file('image')->store('products', 'public');
             $product->image = $imagePath;
+        } elseif ($request->boolean('remove_image') && $product->image) {
+            Storage::disk('public')->delete($product->image);
+            $product->image = null;
         }
 
         $product->app_category_id = $request->app_category_id;
@@ -118,8 +137,11 @@ class ProductController extends Controller
         $product->selling_price = $request->selling_price;
         $product->stock = $request->stock;
         $product->min_stock = $request->min_stock;
+        $product->station = $this->stationForCategory($product->category, $request->input('station', $product->station));
         $product->is_active = $request->has('is_active');
         $product->save();
+
+        $product->modifierGroups()->sync($this->modifierSyncData($request));
 
         return redirect()->route('products.index')->with('success', 'Produk berhasil diperbarui.');
     }
@@ -139,5 +161,25 @@ class ProductController extends Controller
 
         $product->delete();
         return redirect()->route('products.index')->with('success', 'Produk berhasil dihapus.');
+    }
+
+    /**
+     * Pivot payload keeping the order in which groups were ticked.
+     */
+    private function modifierSyncData(Request $request): array
+    {
+        return collect($request->input('modifier_group_ids', []))
+            ->values()
+            ->mapWithKeys(fn ($id, $i) => [(int) $id => ['sort_order' => $i]])
+            ->all();
+    }
+
+    private function stationForCategory(Category $category, ?string $requested): string
+    {
+        return match ($category->slug) {
+            'minuman' => 'barista',
+            'makanan-snack' => 'kitchen',
+            default => $requested ?: 'barista',
+        };
     }
 }

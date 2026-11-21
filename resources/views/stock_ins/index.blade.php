@@ -61,7 +61,7 @@
                                 <td class="text-ellipsis">{{ $item->supplier_name ?: '-' }}</td>
                                 <td class="text-center">
                                     <span class="badge bg-success bg-opacity-10 text-success px-3 py-1.5 rounded-pill fw-bold">
-                                        +{{ $item->quantity }} pcs
+                                        +{{ $item->quantity }} {{ $item->product->unit ?? 'pcs' }}
                                     </span>
                                 </td>
                                 <td class="text-end fw-semibold">Rp{{ number_format($item->purchase_price, 0, ',', '.') }}</td>

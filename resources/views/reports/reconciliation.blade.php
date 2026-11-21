@@ -108,7 +108,7 @@
                     @forelse($transactions as $trx)
                         <tr>
                             <td class="ps-4 fw-bold text-primary text-ellipsis">{{ $trx->invoice_number }}</td>
-                            <td class="text-muted small text-ellipsis">{{ $trx->created_at->format('H:i:s') }}</td>
+                            <td class="text-muted small text-ellipsis">{{ ($trx->paid_at ?? $trx->created_at)->format('H:i:s') }}</td>
                             <td class="text-ellipsis">{{ $trx->user->name ?? 'Kasir' }}</td>
                             <td>
                                 @if($trx->payment_method === 'cash')

@@ -13,12 +13,12 @@
                         @csrf
 
                         <div class="mb-3">
-                            <label for="app_product_id" class="form-label fw-semibold">Pilih Produk <span class="text-danger">*</span></label>
+                            <label for="app_product_id" class="form-label fw-semibold">Pilih Produk / Bahan Baku <span class="text-danger">*</span></label>
                             <select name="app_product_id" id="app_product_id" class="form-select @error('app_product_id') is-invalid @enderror" required>
                                 <option value="">-- Pilih Produk --</option>
                                 @foreach($products as $product)
                                     <option value="{{ $product->id }}" data-price="{{ $product->purchase_price }}" {{ old('app_product_id') == $product->id ? 'selected' : '' }}>
-                                        {{ $product->name }} (SKU: {{ $product->sku }} | Stok Saat Ini: {{ $product->stock }})
+                                        {{ $product->name }} (SKU: {{ $product->sku }} | Stok: {{ $product->stock }} {{ $product->unit }})
                                     </option>
                                 @endforeach
                             </select>

@@ -27,6 +27,9 @@ class RolePermissionSeeder extends Seeder
             'manage-users',
             'view-financial-reports',
             'view-dashboard',
+            'view-barista-tickets',
+            'view-kitchen-tickets',
+            'manage-refunds',
         ];
 
         foreach ($permissions as $permission) {
@@ -37,6 +40,8 @@ class RolePermissionSeeder extends Seeder
         $ownerRole = Role::findOrCreate('owner', 'web');
         $adminRole = Role::findOrCreate('admin', 'web');
         $kasirRole = Role::findOrCreate('kasir', 'web');
+        $baristaRole = Role::findOrCreate('barista', 'web');
+        $kitchenRole = Role::findOrCreate('kitchen', 'web');
 
         // Assign permissions
         $ownerRole->syncPermissions($permissions);
@@ -56,5 +61,11 @@ class RolePermissionSeeder extends Seeder
             'manage-shifts',
             'view-dashboard',
         ]);
+        $baristaRole->syncPermissions(['view-barista-tickets']);
+        $kitchenRole->syncPermissions(['view-kitchen-tickets']);
+        $ownerRole->givePermissionTo(['view-barista-tickets', 'view-kitchen-tickets']);
+        $adminRole->givePermissionTo(['view-barista-tickets', 'view-kitchen-tickets']);
+        $ownerRole->givePermissionTo('manage-refunds');
+        $adminRole->givePermissionTo('manage-refunds');
     }
 }

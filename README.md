@@ -4,34 +4,45 @@ Aplikasi Point of Sale (POS) modern, cepat, dan intuitif untuk UMKM berbasis **L
 
 ---
 
-## 🚀 Panduan Memulai dengan Docker & MySQL
+## 🚀 Panduan Menjalankan di Localhost (Tanpa Docker)
 
-Aplikasi telah dilengkapi dengan konfigurasikasi **Docker Compose** lengkap (PHP 8.3-FPM, Nginx, dan MySQL 8.0).
+### Prasyarat
+- PHP 8.3+ (ekstensi: pdo_mysql, mbstring, bcmath, gd, zip, exif)
+- Composer
+- Node.js & npm
+- MySQL 8.0+ (misal via Homebrew: `brew install mysql && brew services start mysql`)
 
-### 1. Menjalankan Container Docker
-
-Jalankan perintah berikut di terminal:
+### 1. Siapkan Basis Data MySQL
 
 ```bash
-docker-compose up -d --build
+mysql -uroot -e "CREATE DATABASE IF NOT EXISTS smart_kasir;
+CREATE USER IF NOT EXISTS 'kasir_user'@'localhost' IDENTIFIED BY 'kasir_password';
+GRANT ALL PRIVILEGES ON smart_kasir.* TO 'kasir_user'@'localhost';
+FLUSH PRIVILEGES;"
 ```
-
-Ini akan menyalakan 3 service container:
-- `smart-kasir-app` (PHP 8.3-FPM)
-- `smart-kasir-webserver` (Nginx di Port `8060`)
-- `smart-kasir-db` (MySQL 8.0 di Port `3306`)
 
 ---
 
-### 2. Jalankan Migrasi Basis Data & Seeder (Di Dalam Docker)
-
-Setelah container berjalan, jalankan migrasi dan seeder `app_` di dalam container `smart-kasir-app`:
+### 2. Instalasi, Migrasi & Seeder
 
 ```bash
-docker-compose exec app php artisan migrate:fresh --seed
+cp .env.example .env
+composer install
+php artisan key:generate
+php artisan migrate:fresh --seed
+npm install
+npm run build
 ```
 
 Secara otomatis, tabel ber-prefix `app_` (`app_users`, `app_categories`, `app_products`, `app_transactions`, `app_transaction_details`, `app_roles`, `app_permissions`, dsb.) akan dibuat di MySQL beserta data akun bawaan.
+
+Jalankan server:
+
+```bash
+php artisan serve --port=8060
+```
+
+> Untuk pengembangan front-end dengan hot reload, jalankan juga `npm run dev` di terminal terpisah.
 
 ---
 
@@ -53,10 +64,8 @@ Gunakan salah satu akun demo berikut:
 
 ### Menjalankan Testing
 ```bash
-docker-compose exec app php artisan test
+php artisan test
 ```
 
-### Menghentikan Container Docker
-```bash
-docker-compose down
-```
+### Menghentikan Server
+Tekan `Ctrl+C` di terminal tempat `php artisan serve` berjalan.

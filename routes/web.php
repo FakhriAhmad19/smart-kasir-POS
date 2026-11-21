@@ -1,13 +1,18 @@
 <?php
 
+use App\Http\Controllers\CafeTableController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\ModifierGroupController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RawMaterialController;
+use App\Http\Controllers\RefundController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\TicketController;
 use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\StockInController;
@@ -44,6 +49,16 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('ensure.shift.open');
         Route::get('/pos/receipt/{transaction}', [PosController::class, 'showReceipt'])->name('pos.receipt');
         Route::get('/pos/stocks', [PosController::class, 'stocks'])->name('pos.stocks');
+
+        // Open bills (bayar nanti)
+        Route::middleware('ensure.shift.open')->prefix('pos/bills')->name('pos.bills.')->group(function () {
+            Route::get('/', [PosController::class, 'openBills'])->name('index');
+            Route::post('/', [PosController::class, 'storeBill'])->name('store');
+            Route::get('/{bill}', [PosController::class, 'showBill'])->name('show');
+            Route::post('/{bill}/items', [PosController::class, 'addBillItems'])->name('items');
+            Route::post('/{bill}/pay', [PosController::class, 'payBill'])->name('pay');
+            Route::post('/{bill}/cancel', [PosController::class, 'cancelBill'])->name('cancel');
+        });
     });
 
     // Shift Management
@@ -62,6 +77,27 @@ Route::middleware(['auth'])->group(function () {
     // Product Management
     Route::resource('products', ProductController::class)->except(['show'])
         ->middleware('can:manage-products');
+
+    Route::resource('raw-materials', RawMaterialController::class)->except(['show'])
+        ->parameters(['raw-materials' => 'rawMaterial'])
+        ->middleware('can:manage-products');
+
+    Route::get('/tickets/{station}', [TicketController::class, 'index'])
+        ->whereIn('station', ['barista', 'kitchen'])
+        ->name('tickets.index');
+    Route::patch('/tickets/{station}/{detail}/status', [TicketController::class, 'updateStatus'])
+        ->whereIn('station', ['barista', 'kitchen'])
+        ->name('tickets.status');
+
+    // Menu Modifiers & Variants (size, sugar level, toppings, ...)
+    Route::resource('modifiers', ModifierGroupController::class)->except(['show'])
+        ->middleware('can:manage-products');
+
+    // Cafe Tables (dine-in orders are delivered to a table)
+    Route::middleware('can:manage-products')->group(function () {
+        Route::post('/tables/bulk', [CafeTableController::class, 'bulkStore'])->name('tables.bulk');
+        Route::resource('tables', CafeTableController::class)->only(['index', 'store', 'update', 'destroy']);
+    });
 
     // Stock In (Supplier Restock)
     Route::resource('stock-ins', StockInController::class)->only(['index', 'create', 'store'])
@@ -82,6 +118,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/reports/export-csv', [ReportController::class, 'exportCsv'])->name('reports.export_csv');
         Route::get('/reports/export-pdf', [ReportController::class, 'exportPdf'])->name('reports.export_pdf');
         Route::get('/reports/shift-pdf/{shift}', [ReportController::class, 'exportShiftPdf'])->name('reports.shift_pdf');
+    });
+
+    Route::middleware('can:manage-refunds')->group(function () {
+        Route::post('/transactions/{transaction}/refund', [RefundController::class, 'refund'])->name('transactions.refund');
+        Route::post('/transaction-details/{detail}/void', [RefundController::class, 'voidItem'])->name('transaction-details.void');
     });
 
     // User Management

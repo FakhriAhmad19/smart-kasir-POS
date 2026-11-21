@@ -22,6 +22,7 @@ class ReportController extends Controller
             ->withQueryString();
 
         $summary = $salesReport->summary($startDate, $endDate, $paymentMethod, $userId);
+        $cafeBreakdown = $salesReport->cafeBreakdown($startDate, $endDate, $paymentMethod, $userId);
         $totalRevenue = $summary['totalRevenue'];
         $totalTransactions = $summary['totalTransactions'];
         $totalDiscount = $summary['totalDiscount'];
@@ -43,7 +44,8 @@ class ReportController extends Controller
             'totalProfit',
             'totalExpenses',
             'netProfit',
-            'cashiers'
+            'cashiers',
+            'cafeBreakdown'
         ));
     }
 
@@ -53,13 +55,14 @@ class ReportController extends Controller
         $userId = $request->input('user_id');
 
         $query = Transaction::with('user')
-            ->whereDate('created_at', $date);
+            ->paid()
+            ->whereDate('paid_at', $date);
 
         if ($userId) {
             $query->where('app_user_id', $userId);
         }
 
-        $transactions = $query->latest()->get();
+        $transactions = $query->latest('paid_at')->get();
 
         $totalCash = $transactions->where('payment_method', 'cash')->sum('final_amount');
         $totalQris = $transactions->where('payment_method', 'qris')->sum('final_amount');
@@ -106,13 +109,20 @@ class ReportController extends Controller
             // Add UTF-8 BOM for Excel compatibility
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
 
-            fputcsv($file, ['No Invoice', 'Tanggal & Waktu', 'Kasir', 'Metode Bayar', 'Subtotal (Rp)', 'Diskon (Rp)', 'Total Akhir (Rp)', 'Bayar (Rp)', 'Kembali (Rp)']);
+            fputcsv($file, ['No Invoice', 'Tanggal & Waktu', 'No Antrean', 'Tipe Pesanan', 'Meja / Platform', 'Nama Pelanggan', 'Kasir', 'Metode Bayar', 'Subtotal (Rp)', 'Diskon (Rp)', 'Total Akhir (Rp)', 'Bayar (Rp)', 'Kembali (Rp)']);
+
+            // Neutralise spreadsheet formulas in free-text fields (CSV injection).
+            $safe = fn ($v) => is_string($v) && preg_match('/^[=+\-@\t\r]/', $v) ? "'" . $v : $v;
 
             foreach ($transactions as $trx) {
                 fputcsv($file, [
                     $trx->invoice_number,
-                    $trx->created_at->format('d/m/Y H:i:s'),
-                    $trx->user->name ?? '-',
+                    ($trx->paid_at ?? $trx->created_at)->format('d/m/Y H:i:s'),
+                    $trx->queue_number,
+                    $trx->orderTypeLabel(),
+                    $safe($trx->table_name ?? $trx->online_platform ?? ''),
+                    $safe($trx->customer_name ?? ''),
+                    $safe($trx->user->name ?? '-'),
                     strtoupper($trx->payment_method),
                     $trx->total_amount,
                     $trx->discount_amount,

@@ -69,11 +69,11 @@ class ShiftController extends Controller
         }
 
         // Calculate sales recorded against this specific shift
-        $cashSales = Transaction::where('app_shift_id', $activeShift->id)
+        $cashSales = Transaction::paid()->where('app_shift_id', $activeShift->id)
             ->where('payment_method', 'cash')
             ->sum('final_amount');
 
-        $qrisSales = Transaction::where('app_shift_id', $activeShift->id)
+        $qrisSales = Transaction::paid()->where('app_shift_id', $activeShift->id)
             ->where('payment_method', 'qris')
             ->sum('final_amount');
 
@@ -94,11 +94,11 @@ class ShiftController extends Controller
             ->firstOrFail();
 
         DB::transaction(function () use ($activeShift, $request) {
-            $cashSales = Transaction::where('app_shift_id', $activeShift->id)
+            $cashSales = Transaction::paid()->where('app_shift_id', $activeShift->id)
                 ->where('payment_method', 'cash')
                 ->sum('final_amount');
 
-            $qrisSales = Transaction::where('app_shift_id', $activeShift->id)
+            $qrisSales = Transaction::paid()->where('app_shift_id', $activeShift->id)
                 ->where('payment_method', 'qris')
                 ->sum('final_amount');
 

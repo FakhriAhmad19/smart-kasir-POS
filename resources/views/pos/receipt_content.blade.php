@@ -61,7 +61,20 @@
             <p style="margin: 4px 0 0 0;">--------------------------------</p>
         </div>
 
+        @if($transaction->queue_number)
+            <div style="text-align: center; margin-bottom: 6px;">
+                <div style="font-size: 10px;">NO. ANTREAN</div>
+                <div style="font-size: 26px; font-weight: bold; line-height: 1.1;">{{ $transaction->queue_number }}</div>
+            </div>
+        @endif
+
         <div style="font-size: 11px; margin-bottom: 8px;">
+            <div style="font-weight: bold;">
+                {{ $transaction->orderTypeLabel() }}@if($transaction->table_name) · {{ $transaction->table_name }}@endif @if($transaction->online_platform) · {{ $transaction->online_platform }}@endif
+            </div>
+            @if($transaction->customer_name)
+                <div>Nama    : {{ $transaction->customer_name }}</div>
+            @endif
             <div>No. Trx : {{ $transaction->invoice_number }}</div>
             <div>Tanggal : {{ $transaction->created_at->format('d/m/Y H:i') }}</div>
             <div>Kasir   : {{ $transaction->user->name ?? 'Kasir' }}</div>
@@ -73,6 +86,16 @@
                 <tr>
                     <td colspan="3" style="font-weight: bold; padding-top: 2px;">{{ $detail->product->name ?? 'Produk' }}</td>
                 </tr>
+                @foreach($detail->modifiers ?? [] as $mod)
+                <tr>
+                    <td colspan="3" style="padding-left: 8px;">+ {{ $mod['option'] }}@if(($mod['price'] ?? 0) > 0) ({{ number_format($mod['price'], 0, ',', '.') }})@endif</td>
+                </tr>
+                @endforeach
+                @if($detail->notes)
+                <tr>
+                    <td colspan="3" style="padding-left: 8px; font-style: italic;">* {{ $detail->notes }}</td>
+                </tr>
+                @endif
                 <tr>
                     <td style="padding-bottom: 4px;">{{ $detail->quantity }} x {{ number_format($detail->selling_price, 0, ',', '.') }}</td>
                     <td style="text-align: right; padding-bottom: 4px;" colspan="2">Rp{{ number_format($detail->subtotal, 0, ',', '.') }}</td>
@@ -92,10 +115,27 @@
                 <span>-Rp{{ number_format($transaction->discount_amount, 0, ',', '.') }}</span>
             </div>
             @endif
+            @if($transaction->service_charge_amount > 0)
+            <div style="display: flex; justify-content: space-between;">
+                <span>Service:</span>
+                <span>Rp{{ number_format($transaction->service_charge_amount, 0, ',', '.') }}</span>
+            </div>
+            @endif
+            @if($transaction->tax_amount > 0)
+            <div style="display: flex; justify-content: space-between;">
+                <span>Pajak:</span>
+                <span>Rp{{ number_format($transaction->tax_amount, 0, ',', '.') }}</span>
+            </div>
+            @endif
             <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; margin-top: 4px;">
                 <span>TOTAL:</span>
                 <span>Rp{{ number_format($transaction->final_amount, 0, ',', '.') }}</span>
             </div>
+            @if($transaction->status === \App\Models\Transaction::STATUS_OPEN)
+            <div style="text-align: center; font-weight: bold; margin-top: 6px;">*** BILL SEMENTARA ***<br>BELUM DIBAYAR</div>
+            @elseif($transaction->status === \App\Models\Transaction::STATUS_CANCELLED)
+            <div style="text-align: center; font-weight: bold; margin-top: 6px;">*** DIBATALKAN ***</div>
+            @else
             <div style="display: flex; justify-content: space-between; margin-top: 4px;">
                 <span>Metode Bayar:</span>
                 <span style="text-transform: uppercase; font-weight: bold;">{{ $transaction->payment_method }}</span>
@@ -108,6 +148,7 @@
                 <span>Kembali:</span>
                 <span>Rp{{ number_format($transaction->change_amount, 0, ',', '.') }}</span>
             </div>
+            @endif
             <div>--------------------------------</div>
         </div>
 

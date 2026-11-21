@@ -7,8 +7,10 @@
             'owner' => 'bg-primary bg-opacity-10 text-primary',
             'admin' => 'bg-info bg-opacity-10 text-info',
             'kasir' => 'bg-secondary bg-opacity-10 text-secondary',
+            'barista' => 'bg-warning bg-opacity-10 text-warning-emphasis',
+            'kitchen' => 'bg-danger bg-opacity-10 text-danger',
         ];
-        $roleLabels = ['owner' => 'Owner', 'admin' => 'Admin', 'kasir' => 'Kasir'];
+        $roleLabels = ['owner' => 'Owner', 'admin' => 'Admin', 'kasir' => 'Kasir', 'barista' => 'Barista', 'kitchen' => 'Kitchen'];
     @endphp
 
     <div class="card card-glass border-0 mb-4 shadow-sm">

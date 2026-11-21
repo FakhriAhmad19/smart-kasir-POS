@@ -16,17 +16,17 @@ class DashboardController extends Controller
         $thisMonth = now()->firstOfMonth();
 
         // Omset & Transaction Count
-        $todayRevenue = Transaction::whereDate('created_at', $today)->sum('final_amount');
-        $todayTransactionsCount = Transaction::whereDate('created_at', $today)->count();
-        $monthlyRevenue = Transaction::where('created_at', '>=', $thisMonth)->sum('final_amount');
+        $todayRevenue = Transaction::paid()->whereDate('paid_at', $today)->sum('final_amount');
+        $todayTransactionsCount = Transaction::paid()->whereDate('paid_at', $today)->count();
+        $monthlyRevenue = Transaction::paid()->where('paid_at', '>=', $thisMonth)->sum('final_amount');
 
         // Payment Method Split Today
-        $todayCashRevenue = Transaction::whereDate('created_at', $today)->where('payment_method', 'cash')->sum('final_amount');
-        $todayQrisRevenue = Transaction::whereDate('created_at', $today)->where('payment_method', 'qris')->sum('final_amount');
+        $todayCashRevenue = Transaction::paid()->whereDate('paid_at', $today)->where('payment_method', 'cash')->sum('final_amount');
+        $todayQrisRevenue = Transaction::paid()->whereDate('paid_at', $today)->where('payment_method', 'qris')->sum('final_amount');
 
         // Gross Profit Calculation
         $todayGrossProfit = TransactionDetail::whereHas('transaction', function ($q) use ($today) {
-            $q->whereDate('created_at', $today);
+            $q->paid()->whereDate('paid_at', $today);
         })->selectRaw('SUM((selling_price - purchase_price) * quantity) as gross_profit')->value('gross_profit') ?? 0;
 
         // Expenses Today & Net Profit
@@ -41,6 +41,7 @@ class DashboardController extends Controller
 
         // Top 5 Best Selling Products
         $topSellingProducts = TransactionDetail::select('app_product_id', DB::raw('SUM(quantity) as total_qty'), DB::raw('SUM(subtotal) as total_sales'))
+            ->whereHas('transaction', fn ($q) => $q->paid())
             ->with('product.category')
             ->groupBy('app_product_id')
             ->orderByDesc('total_qty')
@@ -49,7 +50,8 @@ class DashboardController extends Controller
 
         // Recent 5 Transactions
         $recentTransactions = Transaction::with('user')
-            ->latest()
+            ->paid()
+            ->latest('paid_at')
             ->take(5)
             ->get();
 

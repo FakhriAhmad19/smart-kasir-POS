@@ -72,9 +72,17 @@
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label fw-semibold small">Foto Produk (Opsional)</label>
-                            <input type="file" name="image" class="form-control" accept="image/*">
+                            <label class="form-label fw-semibold small">Station Tiket <span class="text-danger">*</span></label>
+                            <select name="station" class="form-select" required>
+                                <option value="barista" @selected(old('station', 'barista') === 'barista')>Barista (minuman)</option>
+                                <option value="kitchen" @selected(old('station') === 'kitchen')>Kitchen (makanan)</option>
+                            </select>
+                            <small class="text-muted">Menu akan tampil di tiket station yang dipilih.</small>
                         </div>
+
+                        @include('products._image-field')
+
+                        @include('products._modifier-field')
 
                         <div class="form-check form-switch mb-4">
                             <input class="form-check-input" type="checkbox" name="is_active" id="is_active" value="1" checked>

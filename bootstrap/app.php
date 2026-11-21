@@ -19,6 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*'),
+            // AJAX calls (e.g. POS checkout) must get JSON errors too, otherwise
+            // a validation failure becomes a redirect the frontend cannot parse.
+            fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
     })->create();

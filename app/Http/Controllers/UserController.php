@@ -14,7 +14,7 @@ class UserController extends Controller
     /**
      * Roles that can be assigned from the UI.
      */
-    private const ASSIGNABLE_ROLES = ['owner', 'admin', 'kasir'];
+    private const ASSIGNABLE_ROLES = ['owner', 'admin', 'kasir', 'barista', 'kitchen'];
 
     public function index()
     {
