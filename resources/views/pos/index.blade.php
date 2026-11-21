@@ -1,72 +1,104 @@
 <x-pos-layout>
-    <!-- Left Column: Product Search & Selection -->
-    <div class="flex-grow-1 d-flex flex-column bg-light h-100 overflow-hidden" style="min-width: 0;">
-        <!-- Top POS Header & Search Bar -->
-        <div class="bg-white border-bottom p-3">
-            <div class="d-flex align-items-center justify-content-between gap-2 mb-3 flex-wrap">
+    @php
+        $posUser = auth()->user();
+        $posInitials = collect(preg_split('/\s+/', trim(preg_replace('/\(.*?\)/', '', $posUser->name))))
+            ->filter()->take(2)->map(fn ($w) => mb_strtoupper(mb_substr($w, 0, 1)))->join('');
+        // Placeholder art when a menu has no photo: drinks, food, or general goods.
+        $menuKind = function ($p) {
+            $slug = $p->category->slug ?? '';
+            if (str_starts_with($slug, 'sembako') || $slug === 'kebutuhan') return 'other';
+            return $p->station === 'kitchen' ? 'kitchen' : ($p->station === 'barista' ? 'barista' : 'other');
+        };
+        $stationIcon = fn ($p) => ['barista' => 'bi-cup-hot', 'kitchen' => 'bi-egg-fried', 'other' => 'bi-basket2'][$menuKind($p)];
+        $stationThumb = fn ($p) => 'thumb-' . $menuKind($p);
+        $categoryCounts = $products->countBy('app_category_id');
+        $serviceRate = (float) \App\Models\Setting::get('service_charge_rate', '0');
+        $taxRateSetting = (float) \App\Models\Setting::get('tax_rate', '0');
+    @endphp
+
+    <!-- Left: menu -->
+    <div class="pos-menu flex-grow-1 d-flex flex-column h-100 overflow-hidden">
+        <div class="pos-topbar">
+            <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
                 <div class="d-flex align-items-center gap-2 min-w-0">
-                    <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary btn-touch px-2 flex-shrink-0" title="Kembali ke Dashboard">
-                        <i class="bi bi-arrow-left fs-5"></i>
+                    <a href="{{ route('dashboard') }}" class="btn btn-light btn-icon flex-shrink-0" title="Kembali ke Beranda" aria-label="Kembali ke Beranda">
+                        <i class="bi bi-arrow-left"></i>
                     </a>
-                    <h4 class="fw-bold m-0 text-dark text-truncate">Kasir / POS</h4>
+                    <div class="min-w-0">
+                        <h1 class="pos-title text-truncate">Kasir</h1>
+                        <div class="pos-subtitle text-truncate">
+                            <span class="js-greeting">Halo</span>, {{ \Illuminate\Support\Str::of($posUser->name)->before(' (') }}
+                            <span class="d-none d-md-inline">· <span class="text-success">●</span> shift aktif</span>
+                        </div>
+                    </div>
                 </div>
                 <div class="d-flex align-items-center gap-2 flex-shrink-0">
-                    <button type="button" class="btn btn-sm btn-warning rounded-pill px-3 py-1.5 fw-semibold text-nowrap position-relative" id="btnOpenBills" title="Bill terbuka (bayar nanti)">
-                        <i class="bi bi-receipt"></i> <span class="d-none d-md-inline ms-1">Bill Terbuka</span>
-                        <span class="badge rounded-pill bg-danger ms-1" id="openBillCount">0</span>
+                    <button type="button" class="btn btn-warning btn-touch rounded-pill px-3 gap-2" id="btnOpenBills" title="Bill terbuka (bayar nanti)">
+                        <i class="bi bi-receipt"></i>
+                        <span class="d-none d-md-inline">Bill Terbuka</span>
+                        <span class="badge rounded-pill bg-dark" id="openBillCount">0</span>
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1.5 fw-semibold text-nowrap" id="btnConnectBluetoothPrinter" onclick="connectBluetoothPrinter()" title="Hubungkan Printer Bluetooth">
-                        <i class="bi bi-printer"></i> <span id="bluetoothStatusText" class="d-none d-lg-inline ms-1">Hubungkan Printer Bluetooth</span>
+                    <button type="button" class="btn btn-light btn-icon" id="btnConnectBluetoothPrinter" onclick="connectBluetoothPrinter()" title="Hubungkan printer Bluetooth" aria-label="Hubungkan printer Bluetooth">
+                        <i class="bi bi-printer"></i>
+                        <span id="bluetoothStatusText" class="visually-hidden">Hubungkan printer Bluetooth</span>
                     </button>
-                    <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill text-nowrap">
-                        <i class="bi bi-wifi"></i> <span class="d-none d-sm-inline">Kasir Online</span>
-                    </span>
-                    <span class="text-muted small fw-semibold d-none d-md-inline text-truncate" style="max-width: 160px;">
-                        <i class="bi bi-person-circle me-1"></i> {{ auth()->user()->name }}
-                    </span>
-                    <form method="POST" action="{{ route('logout') }}" class="d-inline">
-                        @csrf
-                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-2.5 py-1 text-nowrap" title="Keluar / Logout">
-                            <i class="bi bi-box-arrow-right"></i> <span class="d-none d-sm-inline ms-1">Keluar</span>
+                    <div class="dropdown">
+                        <button class="user-pill" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menu akun">
+                            <span class="avatar">{{ $posInitials ?: 'K' }}</span>
                         </button>
-                    </form>
+                        <ul class="dropdown-menu dropdown-menu-end mt-2 p-2" style="min-width: 210px;">
+                            <li class="px-2 py-2 mb-1 border-bottom">
+                                <div class="fw-bold small">{{ $posUser->name }}</div>
+                                <div class="text-muted" style="font-size: .75rem;">{{ $posUser->email }}</div>
+                            </li>
+                            <li><a class="dropdown-item py-2 small fw-semibold" href="{{ route('dashboard') }}"><i class="bi bi-house-heart me-2"></i>Beranda</a></li>
+                            @can('manage-shifts')
+                            <li><a class="dropdown-item py-2 small fw-semibold" href="{{ route('shifts.close_form') }}"><i class="bi bi-door-closed me-2"></i>Tutup Shift</a></li>
+                            @endcan
+                            <li><hr class="dropdown-divider my-1"></li>
+                            <li>
+                                <form method="POST" action="{{ route('logout') }}">
+                                    @csrf
+                                    <button type="submit" class="dropdown-item py-2 small fw-bold text-danger"><i class="bi bi-box-arrow-right me-2"></i>Keluar</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
 
-            <!-- Search Inputs -->
-            <div class="row g-2">
-                <div class="col-md-7">
-                    <div class="input-group input-group-lg">
-                        <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted fs-5"></i></span>
-                        <input type="text" id="searchInput" class="form-control bg-light border-start-0 fs-6" placeholder="Cari nama, SKU, atau scan barcode..." autofocus autocomplete="off">
-                    </div>
-                </div>
-                <div class="col-md-5">
-                    <div class="input-group input-group-lg">
-                        <span class="input-group-text bg-light border-end-0"><i class="bi bi-barcode text-primary fs-5"></i></span>
-                        <input type="text" id="barcodeScannerInput" class="form-control bg-light border-start-0 fs-6" placeholder="Scanner Barcode Standby..." autocomplete="off">
-                    </div>
-                </div>
+            <!-- Search & scanner -->
+            <div class="d-flex gap-2 mb-3">
+                <label class="pos-search mb-0">
+                    <i class="bi bi-search"></i>
+                    <input type="text" id="searchInput" class="form-control" placeholder="Cari menu…" autofocus autocomplete="off" aria-label="Cari menu">
+                </label>
+                <label class="pos-search pos-scan mb-0 d-none d-sm-block" title="Arahkan scanner barcode ke kolom ini">
+                    <i class="bi bi-upc-scan"></i>
+                    <input type="text" id="barcodeScannerInput" class="form-control" placeholder="Scan barcode" autocomplete="off" aria-label="Input scanner barcode">
+                </label>
             </div>
 
-            <!-- Category Pills -->
-            <div class="d-flex gap-2 mt-3 overflow-x-auto pb-1" id="categoryPills">
-                <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 py-1.5 fw-semibold category-pill active" data-id="">
-                    Semua Produk
+            <!-- Category chips -->
+            <div class="d-flex gap-2 overflow-x-auto pb-1" id="categoryPills" role="tablist" aria-label="Kategori menu">
+                <button type="button" class="category-pill active" data-id="">
+                    <i class="bi bi-grid"></i> Semua <span class="pill-count">{{ $products->count() }}</span>
                 </button>
                 @foreach($categories as $category)
-                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1.5 fw-semibold category-pill" data-id="{{ $category->id }}">
-                        {{ $category->name }}
+                    @continue(($categoryCounts[$category->id] ?? 0) === 0)
+                    <button type="button" class="category-pill" data-id="{{ $category->id }}">
+                        {{ $category->name }} <span class="pill-count">{{ $categoryCounts[$category->id] }}</span>
                     </button>
                 @endforeach
             </div>
         </div>
 
-        <!-- Product Grid Area -->
-        <div class="p-3 flex-grow-1 overflow-y-auto">
+        <!-- Menu grid -->
+        <div class="pos-grid-scroll flex-grow-1 overflow-y-auto">
             <div class="row g-3" id="productGrid">
                 @foreach($products as $product)
-                    <div class="col-6 col-sm-4 col-md-3 col-xl-2.4 product-item" 
+                    @php $isLow = $product->stock <= $product->min_stock; @endphp
+                    <div class="col-6 col-md-4 col-xl-3 product-item {{ $product->stock <= 0 ? 'is-out' : '' }}"
                          data-id="{{ $product->id }}"
                          data-sku="{{ $product->sku }}"
                          data-barcode="{{ $product->barcode }}"
@@ -75,64 +107,64 @@
                          data-stock="{{ $product->stock }}"
                          data-min-stock="{{ $product->min_stock }}"
                          data-image="{{ $product->image_url }}"
+                         data-icon="{{ $stationIcon($product) }}"
                          data-category="{{ $product->app_category_id }}">
-                        <div class="pos-product-card h-100 d-flex flex-column">
-                            <div class="pos-product-thumb">
+                        <div class="pos-product-card h-100 d-flex flex-column" role="button" tabindex="0" aria-label="Tambah {{ $product->name }}">
+                            <div class="pos-product-thumb {{ $product->image_url ? '' : $stationThumb($product) }}">
                                 @if($product->image_url)
-                                    <img src="{{ $product->image_url }}" alt="{{ $product->name }}" loading="lazy">
+                                    <img src="{{ $product->image_url }}" alt="" loading="lazy">
                                 @else
-                                    <div class="pos-product-thumb-empty"><i class="bi bi-box-seam"></i></div>
+                                    <div class="pos-product-thumb-empty"><i class="bi {{ $stationIcon($product) }}"></i></div>
                                 @endif
-                                <span class="badge bg-white text-secondary border small pos-thumb-category">{{ $product->category->name ?? 'Umum' }}</span>
-                                <span class="badge {{ $product->stock <= $product->min_stock ? 'bg-danger' : 'bg-success' }} rounded-pill pos-thumb-stock" id="stockBadge-{{ $product->id }}">
-                                    Stok: {{ $product->stock }}
+                                <span class="badge pos-thumb-stock {{ $isLow ? 'bg-danger' : '' }}" id="stockBadge-{{ $product->id }}">
+                                    {{ $product->stock <= 0 ? 'Habis' : 'Sisa ' . $product->stock }}
                                 </span>
                             </div>
-                            <div class="px-3 pb-3 pt-2 d-flex flex-column justify-content-between flex-grow-1">
-                            <div>
-                                <h6 class="fw-bold text-dark mb-1 text-truncate-2" style="font-size: 0.925rem; min-height: 2.6rem;">{{ $product->name }}</h6>
+                            <div class="pos-product-body d-flex flex-column flex-grow-1">
+                                <div class="pos-product-name text-truncate-2">{{ $product->name }}</div>
                                 @if($product->modifierGroups->isNotEmpty())
-                                    <small class="text-primary d-block text-truncate mb-2" style="font-size: 0.75rem;"><i class="bi bi-sliders me-1"></i>{{ $product->modifierGroups->pluck('name')->join(', ') }}</small>
+                                    <div class="pos-product-meta has-options text-truncate"><i class="bi bi-sliders2 me-1"></i>{{ $product->modifierGroups->pluck('name')->join(' · ') }}</div>
                                 @else
-                                    <small class="text-muted d-block text-truncate mb-2" style="font-size: 0.75rem;">SKU: {{ $product->sku }}</small>
+                                    <div class="pos-product-meta text-truncate">{{ $product->category->name ?? 'Umum' }}</div>
                                 @endif
-                            </div>
-                            <div class="pt-2 border-top d-flex justify-content-between align-items-center">
-                                <span class="fw-bold text-primary" style="font-size: 1rem;">Rp{{ number_format($product->selling_price, 0, ',', '.') }}</span>
-                                <button type="button" class="btn btn-sm btn-primary btn-touch rounded-circle p-0 d-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
-                                    <i class="bi bi-plus-lg"></i>
-                                </button>
-                            </div>
+                                <div class="d-flex justify-content-between align-items-center mt-auto pt-2">
+                                    <span class="pos-price">Rp{{ number_format($product->selling_price, 0, ',', '.') }}</span>
+                                    <span class="pos-add-btn" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 @endforeach
             </div>
+            <div class="empty-state d-none" id="menuEmptyState">
+                <span class="empty-icon"><i class="bi bi-search"></i></span>
+                <p class="fw-semibold text-dark mb-1">Menu tidak ditemukan</p>
+                <small>Coba kata kunci lain atau pilih kategori “Semua”.</small>
+            </div>
         </div>
     </div>
 
-    <!-- Right Column: Shopping Cart & Checkout Panel -->
-    <div class="pos-cart-panel shadow-lg" style="width: 420px; min-width: 420px;">
-        <!-- Cart Header -->
-        <div class="p-3 border-bottom bg-white d-flex align-items-center justify-content-between">
+    <!-- Right: order ticket -->
+    <aside class="pos-cart-panel" aria-label="Pesanan">
+        <div class="order-head d-flex align-items-center justify-content-between">
             <div>
-                <h5 class="fw-bold mb-0 text-dark">Keranjang Belanja</h5>
-                <small class="text-muted" id="cartItemCount">0 item dipilih</small>
+                <h2 class="order-title">Pesanan</h2>
+                <small class="text-muted fw-semibold" id="cartItemCount">0 item dipilih</small>
             </div>
-            <button type="button" class="btn btn-sm btn-outline-danger" id="btnClearCart" title="Kosongkan Keranjang">
-                <i class="bi bi-trash me-1"></i> Bersihkan
+            <button type="button" class="btn btn-sm btn-light text-danger" id="btnClearCart" title="Kosongkan pesanan">
+                <i class="bi bi-trash3 me-1"></i> Kosongkan
             </button>
         </div>
 
-        <!-- Order Info: type, table, customer -->
-        <div class="px-3 pt-3 pb-2 border-bottom bg-white" id="orderInfoPanel">
-            <div class="btn-group w-100 mb-2" role="group" aria-label="Tipe pesanan">
+        <!-- Order info: type, table, customer -->
+        <div class="order-info" id="orderInfoPanel">
+            <div class="segmented mb-2" role="radiogroup" aria-label="Tipe pesanan">
                 <input type="radio" class="btn-check" name="order_type" id="otDineIn" value="dine_in" checked>
-                <label class="btn btn-outline-primary btn-sm py-2" for="otDineIn"><i class="bi bi-cup-hot me-1"></i>Dine-in</label>
+                <label for="otDineIn"><i class="bi bi-cup-hot"></i>Dine-in</label>
                 <input type="radio" class="btn-check" name="order_type" id="otTakeAway" value="take_away">
-                <label class="btn btn-outline-primary btn-sm py-2" for="otTakeAway"><i class="bi bi-bag me-1"></i>Take Away</label>
+                <label for="otTakeAway"><i class="bi bi-bag"></i>Bawa Pulang</label>
                 <input type="radio" class="btn-check" name="order_type" id="otOnline" value="online">
-                <label class="btn btn-outline-primary btn-sm py-2" for="otOnline"><i class="bi bi-phone me-1"></i>Online</label>
+                <label for="otOnline"><i class="bi bi-phone"></i>Online</label>
             </div>
             <div class="row g-2">
                 <div class="col-6" id="tableWrap">
@@ -140,7 +172,7 @@
                         @if($tables->isEmpty())
                             <option value="">Belum ada meja</option>
                         @else
-                            <option value="">-- Pilih Meja --</option>
+                            <option value="">Pilih meja…</option>
                             @foreach($tables->groupBy(fn ($t) => $t->area ?: 'Lainnya') as $area => $areaTables)
                                 <optgroup label="{{ $area }}">
                                     @foreach($areaTables as $table)
@@ -153,149 +185,68 @@
                 </div>
                 <div class="col-6 d-none" id="platformWrap">
                     <select id="platformSelect" class="form-select form-select-sm" aria-label="Platform online">
-                        <option value="">-- Platform --</option>
+                        <option value="">Platform…</option>
                         @foreach(\App\Models\Transaction::ONLINE_PLATFORMS as $platform)
                             <option value="{{ $platform }}">{{ $platform }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="col-6" id="customerWrap">
-                    <input type="text" id="customerName" class="form-control form-control-sm" maxlength="100" placeholder="Nama pelanggan (opsional)">
+                    <input type="text" id="customerName" class="form-control form-control-sm" maxlength="100" placeholder="Nama pelanggan" aria-label="Nama pelanggan">
                 </div>
             </div>
             @if($tables->isEmpty())
-                <small class="text-danger d-block mt-1" id="noTableHint">
+                <small class="text-danger d-block mt-2" id="noTableHint">
                     <i class="bi bi-exclamation-circle"></i> Dine-in butuh meja. Tambahkan di menu <b>Meja</b>.
                 </small>
             @endif
         </div>
 
-        <!-- Cart Item List -->
-        <div class="pos-cart-items p-3" id="cartContainer">
-            <div class="text-center py-5 text-muted" id="cartEmptyState">
-                <i class="bi bi-cart-x display-3 text-secondary opacity-50 mb-2 d-block"></i>
-                <p class="fw-semibold mb-1">Keranjang masih kosong</p>
-                <small>Klik produk di sebelah kiri atau scan barcode untuk menambahkan.</small>
+        <!-- Cart lines -->
+        <div class="pos-cart-items" id="cartContainer">
+            <div class="empty-state" id="cartEmptyState">
+                <span class="empty-icon"><i class="bi bi-cup-hot"></i></span>
+                <p class="fw-semibold text-dark mb-1">Belum ada pesanan</p>
+                <small>Ketuk menu di sebelah kiri untuk mulai.</small>
             </div>
-            <div class="d-flex flex-column gap-2" id="cartList"></div>
+            <div id="cartList"></div>
         </div>
 
-        <!-- Cart Footer & Calculation Panel -->
-        <div class="p-3 border-top bg-white mt-auto">
+        <!-- Totals & actions -->
+        <div class="order-foot">
             <!-- Shown while adding items to an existing open bill -->
             <div class="alert alert-warning py-2 px-3 mb-3 d-none" id="activeBillBanner">
                 <div class="d-flex justify-content-between align-items-center gap-2">
                     <div class="min-w-0 small">
-                        <div class="fw-bold text-truncate"><i class="bi bi-plus-circle me-1"></i>Tambah pesanan ke <span id="activeBillLabel">-</span></div>
+                        <div class="fw-bold text-truncate"><i class="bi bi-plus-circle me-1"></i>Tambah ke <span id="activeBillLabel">-</span></div>
                         <div class="text-muted">Pilih menu lalu tekan <b>Kirim ke Bill</b>.</div>
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0" id="btnExitBillMode">Batal</button>
+                    <button type="button" class="btn btn-sm btn-light flex-shrink-0" id="btnExitBillMode">Batal</button>
                 </div>
                 <button type="button" class="btn btn-warning btn-touch w-100 fw-bold mt-2" id="btnSendToBill" disabled>
                     <i class="bi bi-send me-1"></i> Kirim ke Bill
                 </button>
             </div>
 
-            <!-- Calculation Breakdown -->
-            <div class="mb-3">
-                <div class="d-flex justify-content-between text-muted small mb-1">
-                    <span>Subtotal:</span>
-                    <span class="fw-bold text-dark" id="displaySubtotal">Rp0</span>
-                </div>
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="text-muted small">Diskon (Rp):</span>
-                    <input type="number" id="discountInput" class="form-control form-control-sm text-end" style="width: 120px;" placeholder="0" min="0" value="0">
-                </div>
-                <div class="d-flex justify-content-between text-muted small mb-1">
-                    <span>Service charge:</span>
-                    <span id="displayServiceCharge">Rp0</span>
-                </div>
-                <div class="d-flex justify-content-between text-muted small mb-2">
-                    <span>Pajak:</span>
-                    <span id="displayTax">Rp0</span>
-                </div>
-                <div class="d-flex justify-content-between align-items-center pt-2 border-top">
-                    <h5 class="fw-bold text-dark m-0">TOTAL:</h5>
-                    <h3 class="fw-extrabold text-primary m-0" id="displayFinalTotal">Rp0</h3>
-                </div>
+            <div class="sum-row"><span>Subtotal</span><span id="displaySubtotal">Rp0</span></div>
+            <div class="sum-row d-none" id="displayDiscountRow"><span>Diskon</span><span class="text-success" id="displayDiscount">-Rp0</span></div>
+            <div class="sum-row {{ $serviceRate > 0 ? '' : 'd-none' }}"><span>Service {{ rtrim(rtrim(number_format($serviceRate, 2, ',', '.'), '0'), ',') }}%</span><span id="displayServiceCharge">Rp0</span></div>
+            <div class="sum-row {{ $taxRateSetting > 0 ? '' : 'd-none' }}"><span>Pajak {{ rtrim(rtrim(number_format($taxRateSetting, 2, ',', '.'), '0'), ',') }}%</span><span id="displayTax">Rp0</span></div>
+            <div class="sum-total">
+                <span class="label">Total</span>
+                <span class="amount" id="displayFinalTotal">Rp0</span>
             </div>
 
-            <div id="payNowSection">
-            <button type="button" class="btn btn-outline-warning text-dark btn-touch w-100 fw-bold mb-3" id="btnSaveBill" disabled>
-                <i class="bi bi-clock-history me-1"></i> Bayar Nanti (Simpan sebagai Bill)
-            </button>
-
-            <!-- Payment Method Tabs -->
-            <ul class="nav nav-pills nav-justified mb-3 gap-2" id="paymentTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active fw-bold btn-touch py-2" id="cash-tab" data-bs-toggle="tab" data-bs-target="#cash-panel" type="button" role="tab">
-                        <i class="bi bi-cash-stack me-1"></i> Tunai (Cash)
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link fw-bold btn-touch py-2" id="qris-tab" data-bs-toggle="tab" data-bs-target="#qris-panel" type="button" role="tab">
-                        <i class="bi bi-qr-code-scan me-1"></i> QRIS UMKM
-                    </button>
-                </li>
-            </ul>
-
-            <div class="tab-content" id="paymentTabContent">
-                <!-- Cash Payment Panel -->
-                <div class="tab-pane fade show active" id="cash-panel" role="tabpanel">
-                    <div class="mb-2">
-                        <label class="form-label fw-semibold small text-secondary mb-1">Nominal Uang Bayar (Rp)</label>
-                        <input type="number" id="cashPaidInput" class="form-control form-control-lg fw-bold text-end" placeholder="0">
-                    </div>
-
-                    <!-- Quick Cash Buttons -->
-                    <div class="row g-1.5 mb-2">
-                        <div class="col-4">
-                            <button type="button" class="btn btn-outline-secondary w-100 btn-quick-cash" id="btnExactCash">Uang Pas</button>
-                        </div>
-                        <div class="col-4">
-                            <button type="button" class="btn btn-outline-secondary w-100 btn-quick-cash" onclick="addQuickCash(10000)">10.000</button>
-                        </div>
-                        <div class="col-4">
-                            <button type="button" class="btn btn-outline-secondary w-100 btn-quick-cash" onclick="addQuickCash(20000)">20.000</button>
-                        </div>
-                        <div class="col-4">
-                            <button type="button" class="btn btn-outline-secondary w-100 btn-quick-cash" onclick="addQuickCash(50000)">50.000</button>
-                        </div>
-                        <div class="col-4">
-                            <button type="button" class="btn btn-outline-secondary w-100 btn-quick-cash" onclick="addQuickCash(100000)">100.000</button>
-                        </div>
-                        <div class="col-4">
-                            <button type="button" class="btn btn-outline-danger w-100 btn-quick-cash" onclick="clearCashInput()"><i class="bi bi-backspace"></i></button>
-                        </div>
-                    </div>
-
-                    <!-- Change Calculation Indicator -->
-                    <div class="p-2.5 rounded-3 bg-light border d-flex justify-content-between align-items-center mb-3">
-                        <span class="fw-semibold text-secondary small">Kembalian:</span>
-                        <span class="fw-bold fs-5 text-success" id="displayChange">Rp0</span>
-                    </div>
-
-                    <button type="button" class="btn btn-success btn-touch w-100 py-3 fw-bold fs-5 shadow" id="btnCheckoutCash" disabled>
-                        <i class="bi bi-check-circle-fill me-2"></i> Bayar Tunai
-                    </button>
-                </div>
-
-                <!-- QRIS Payment Panel -->
-                <div class="tab-pane fade" id="qris-panel" role="tabpanel">
-                    <div class="p-3 bg-primary bg-opacity-10 rounded-3 border border-primary border-opacity-25 text-center mb-3">
-                        <i class="bi bi-qr-code-scan text-primary display-5 d-block mb-2"></i>
-                        <h6 class="fw-bold text-dark mb-1">Pembayaran Non-Tunai QRIS</h6>
-                        <small class="text-muted d-block">Scan kode QR yang tampil dan konfirmasi dana masuk merchant.</small>
-                    </div>
-
-                    <button type="button" class="btn btn-primary btn-touch w-100 py-3 fw-bold fs-5 shadow" id="btnOpenQrisModal">
-                        <i class="bi bi-qr-code me-2"></i> Tampilkan Kode QRIS
-                    </button>
-                </div>
+            <div id="payNowSection" class="d-flex gap-2 mt-3">
+                <button type="button" class="btn btn-outline-warning btn-pay px-3" id="btnSaveBill" disabled title="Simpan sebagai bill, bayar nanti">
+                    <i class="bi bi-clock-history"></i><span class="ms-2">Bayar Nanti</span>
+                </button>
+                <button type="button" class="btn btn-primary btn-pay flex-grow-1" id="btnOpenPayment" disabled>
+                    <i class="bi bi-wallet2 me-2"></i> Bayar
+                </button>
             </div>
-            </div><!-- /#payNowSection -->
         </div>
-    </div>
+    </aside>
 
     <!-- Modal: Open Bills list -->
     <div class="modal fade" id="billsModal" tabindex="-1" aria-hidden="true">
@@ -414,30 +365,68 @@
         </div>
     </div>
 
-    <!-- Modal QRIS Payment -->
-    <div class="modal fade" id="qrisModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-4 border-0 text-center p-4">
-                <div class="modal-header border-0 pb-0 justify-content-end">
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <!-- Modal: Payment sheet -->
+    <div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true" aria-labelledby="paymentTitle">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-2">
+                    <h5 class="modal-title font-display" id="paymentTitle">Pembayaran</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
                 </div>
-                <div class="modal-body p-2">
-                    <h4 class="fw-bold mb-1">QRIS Merchant UMKM</h4>
-                    <p class="text-muted small mb-3">Pindai menggunakan M-Banking / E-Wallet (Gopay, OVO, Dana, ShopeePay)</p>
-                    
-                    <!-- Dynamic/Static QR Code Image Placeholder -->
-                    <div class="bg-white p-3 d-inline-block rounded-3 border shadow-sm mb-3">
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=SMART-KASIR-UMKM-QRIS-NOMINAL" alt="QRIS Code" id="qrisImage" class="img-fluid">
+                <div class="modal-body pt-1">
+                    <div class="pay-total-card mb-3">
+                        <small class="d-block fw-semibold">Total yang dibayar</small>
+                        <div class="amount" id="payModalTotal">Rp0</div>
+                        <small id="payModalInfo">-</small>
                     </div>
 
-                    <div class="bg-light p-3 rounded-3 mb-4">
-                        <small class="text-muted d-block uppercase fw-semibold">Nominal Pas yang Wajib Ditransfer:</small>
-                        <h2 class="fw-extrabold text-primary m-0" id="qrisModalTotal">Rp0</h2>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <label class="form-label mb-0" for="discountInput">Diskon (Rp)</label>
+                        <input type="number" id="discountInput" class="form-control form-control-sm text-end" style="width: 140px;" placeholder="0" min="0" value="0">
                     </div>
 
-                    <button type="button" class="btn btn-success btn-touch w-100 py-3 fw-bold fs-5 shadow" id="btnCheckoutQris">
-                        <i class="bi bi-check-circle-fill me-2"></i> Konfirmasi Pembayaran Dana Masuk
-                    </button>
+                    <div class="segmented mb-3" role="radiogroup" aria-label="Metode pembayaran">
+                        <input type="radio" class="btn-check" name="pay_method" id="pmCash" value="cash" checked>
+                        <label for="pmCash"><i class="bi bi-cash-coin"></i>Tunai</label>
+                        <input type="radio" class="btn-check" name="pay_method" id="pmQris" value="qris">
+                        <label for="pmQris"><i class="bi bi-qr-code"></i>QRIS</label>
+                    </div>
+
+                    <!-- Cash -->
+                    <div id="cash-panel">
+                        <label class="form-label" for="cashPaidInput">Uang diterima</label>
+                        <div class="input-group input-group-lg mb-2">
+                            <span class="input-group-text fw-bold">Rp</span>
+                            <input type="number" id="cashPaidInput" class="form-control fw-bold text-end" placeholder="0" inputmode="numeric">
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-4"><button type="button" class="btn btn-outline-primary w-100 btn-quick-cash" id="btnExactCash">Uang Pas</button></div>
+                            <div class="col-4"><button type="button" class="btn btn-light w-100 btn-quick-cash" onclick="addQuickCash(10000)">+10rb</button></div>
+                            <div class="col-4"><button type="button" class="btn btn-light w-100 btn-quick-cash" onclick="addQuickCash(20000)">+20rb</button></div>
+                            <div class="col-4"><button type="button" class="btn btn-light w-100 btn-quick-cash" onclick="addQuickCash(50000)">+50rb</button></div>
+                            <div class="col-4"><button type="button" class="btn btn-light w-100 btn-quick-cash" onclick="addQuickCash(100000)">+100rb</button></div>
+                            <div class="col-4"><button type="button" class="btn btn-light w-100 btn-quick-cash text-danger" onclick="clearCashInput()" aria-label="Hapus nominal"><i class="bi bi-backspace"></i></button></div>
+                        </div>
+                        <div class="change-box d-flex justify-content-between align-items-center mb-3">
+                            <span class="fw-semibold text-secondary">Kembalian</span>
+                            <span class="fw-bold fs-5 text-muted" id="displayChange">Rp0</span>
+                        </div>
+                        <button type="button" class="btn btn-success btn-pay w-100" id="btnCheckoutCash" disabled>
+                            <i class="bi bi-check2-circle me-2"></i> Selesaikan Pembayaran
+                        </button>
+                    </div>
+
+                    <!-- QRIS -->
+                    <div id="qris-panel" class="d-none text-center">
+                        <div class="qris-box mb-2">
+                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=SMART-KASIR-UMKM-QRIS-NOMINAL" alt="Kode QRIS" id="qrisImage" width="200" height="200">
+                        </div>
+                        <p class="text-muted small mb-1">Pindai dengan m-banking / e-wallet</p>
+                        <p class="mb-3">Nominal: <b id="qrisModalTotal">Rp0</b></p>
+                        <button type="button" class="btn btn-success btn-pay w-100" id="btnCheckoutQris">
+                            <i class="bi bi-check2-circle me-2"></i> Dana Sudah Masuk
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -480,12 +469,18 @@
     <!-- Client-Side POS Logic Javascript -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            (function greet() {
+                const h = new Date().getHours();
+                const text = h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 18 ? 'Selamat sore' : 'Selamat malam';
+                document.querySelectorAll('.js-greeting').forEach(el => el.textContent = text);
+            })();
+
             function notify(icon, message) {
                 Swal.fire({
                     icon: icon,
                     title: icon === 'success' ? 'Berhasil' : (icon === 'warning' ? 'Perhatian' : 'Gagal'),
                     text: message,
-                    confirmButtonColor: '#1d4ed8',
+                    confirmButtonColor: '#8b5a3c',
                     confirmButtonText: 'OK',
                 });
             }
@@ -516,10 +511,12 @@
             // Category filter click handler
             document.querySelectorAll('.category-pill').forEach(pill => {
                 pill.addEventListener('click', function() {
-                    document.querySelectorAll('.category-pill').forEach(p => p.classList.remove('active', 'btn-primary'));
-                    document.querySelectorAll('.category-pill').forEach(p => p.classList.add('btn-outline-secondary'));
-                    this.classList.remove('btn-outline-secondary');
-                    this.classList.add('active', 'btn-primary');
+                    document.querySelectorAll('.category-pill').forEach(p => {
+                        p.classList.remove('active');
+                        p.setAttribute('aria-selected', 'false');
+                    });
+                    this.classList.add('active');
+                    this.setAttribute('aria-selected', 'true');
                     
                     const catId = this.dataset.id;
                     filterProducts(searchInput.value, catId);
@@ -530,6 +527,12 @@
             document.querySelectorAll('.product-item').forEach(item => {
                 item.addEventListener('click', function() {
                     selectProduct(this);
+                });
+                item.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        selectProduct(this);
+                    }
                 });
             });
 
@@ -568,12 +571,10 @@
                     const matchesQuery = name.includes(q) || sku.includes(q) || barcode.includes(q);
                     const matchesCategory = !catId || itemCat === catId;
 
-                    if (matchesQuery && matchesCategory) {
-                        item.style.display = 'block';
-                    } else {
-                        item.style.display = 'none';
-                    }
+                    item.style.display = (matchesQuery && matchesCategory) ? '' : 'none';
                 });
+                const anyVisible = [...document.querySelectorAll('.product-item')].some(i => i.style.display !== 'none');
+                document.getElementById('menuEmptyState').classList.toggle('d-none', anyVisible);
             }
 
             // Modifier groups per product id (only products that have any).
@@ -584,6 +585,7 @@
                     id: parseInt(el.dataset.id),
                     name: el.dataset.name,
                     image: el.dataset.image || '',
+                    icon: el.dataset.icon || 'bi-cup-hot',
                     price: parseFloat(el.dataset.price),
                     stock: parseInt(el.dataset.stock)
                 };
@@ -626,6 +628,7 @@
                         id: product.id,
                         name: product.name,
                         image: product.image || '',
+                        icon: product.icon,
                         price: product.price + mods.total,
                         modifier_option_ids: optionIds,
                         modifier_labels: mods.labels,
@@ -824,32 +827,32 @@
                     cartItemCount.innerText = totalCount + ' item dipilih';
 
                     cartList.innerHTML = cart.map((item, index) => `
-                        <div class="card border-0 bg-light p-2 rounded-3 d-flex flex-row gap-2 align-items-center">
+                        <div class="cart-line">
                             <div class="pos-cart-thumb">
                                 ${item.image
                                     ? `<img src="${escapeHtml(item.image)}" alt="">`
-                                    : `<i class="bi bi-box-seam"></i>`}
+                                    : `<i class="bi ${escapeHtml(item.icon || 'bi-cup-hot')}"></i>`}
                             </div>
                             <div class="flex-grow-1 min-w-0">
-                            <div class="d-flex justify-content-between align-items-start mb-1">
-                                <div class="min-w-0 me-2">
-                                    <div class="fw-bold text-dark text-truncate" style="font-size: 0.9rem;">${escapeHtml(item.name)}</div>
-                                    ${item.modifier_labels.length ? `<div class="text-muted text-truncate" style="font-size: 0.75rem;">${item.modifier_labels.map(escapeHtml).join(', ')}</div>` : ''}
-                                    ${item.notes ? `<div class="text-warning-emphasis fst-italic text-truncate" style="font-size: 0.75rem;"><i class="bi bi-pencil-square"></i> ${escapeHtml(item.notes)}</div>` : ''}
+                                <div class="d-flex justify-content-between gap-2">
+                                    <div class="cart-line-name text-truncate">${escapeHtml(item.name)}</div>
+                                    <button type="button" class="cart-line-remove" onclick="removeCartItem(${index})" aria-label="Hapus ${escapeHtml(item.name)}">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
                                 </div>
-                                <button type="button" class="btn btn-sm text-danger p-0 border-0" onclick="removeCartItem(${index})">
-                                    <i class="bi bi-x-circle-fill"></i>
-                                </button>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="text-primary fw-bold small">Rp${formatRupiah(item.price)}</span>
-                                <div class="d-flex align-items-center gap-1 bg-white border rounded-2 p-1">
-                                    <button type="button" class="btn btn-xs btn-light border-0 fw-bold px-2 py-0" onclick="updateCartQty(${index}, -1)">-</button>
-                                    <span class="fw-bold px-2 small">${item.quantity}</span>
-                                    <button type="button" class="btn btn-xs btn-light border-0 fw-bold px-2 py-0" onclick="updateCartQty(${index}, 1)">+</button>
+                                ${item.modifier_labels.length ? `<div class="cart-line-mods text-truncate">${item.modifier_labels.map(escapeHtml).join(' · ')}</div>` : ''}
+                                ${item.notes ? `<div class="cart-line-note text-truncate"><i class="bi bi-pencil"></i> ${escapeHtml(item.notes)}</div>` : ''}
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <div class="qty-stepper">
+                                        <button type="button" onclick="updateCartQty(${index}, -1)" aria-label="Kurangi">−</button>
+                                        <span>${item.quantity}</span>
+                                        <button type="button" onclick="updateCartQty(${index}, 1)" aria-label="Tambah">+</button>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="cart-line-total">Rp${formatRupiah(item.price * item.quantity)}</div>
+                                        ${item.quantity > 1 ? `<small class="text-muted">@ Rp${formatRupiah(item.price)}</small>` : ''}
+                                    </div>
                                 </div>
-                                <span class="fw-extrabold text-dark small">Rp${formatRupiah(item.price * item.quantity)}</span>
-                            </div>
                             </div>
                         </div>
                     `).join('');
@@ -868,6 +871,21 @@
                 displayServiceCharge.innerText = 'Rp' + formatRupiah(charges.service);
                 displayTax.innerText = 'Rp' + formatRupiah(charges.tax);
                 displayFinalTotal.innerText = 'Rp' + formatRupiah(finalTotal);
+
+                const discountRow = document.getElementById('displayDiscountRow');
+                discountRow.classList.toggle('d-none', !(discountAmount > 0));
+                document.getElementById('displayDiscount').innerText = '-Rp' + formatRupiah(Math.min(discountAmount, subtotal));
+
+                const payBtn = document.getElementById('btnOpenPayment');
+                payBtn.innerHTML = '<i class="bi bi-wallet2 me-2"></i> Bayar' + (cart.length ? ' · Rp' + formatRupiah(finalTotal) : '');
+                document.getElementById('payModalTotal').innerText = 'Rp' + formatRupiah(finalTotal);
+                document.getElementById('qrisModalTotal').innerText = 'Rp' + formatRupiah(finalTotal);
+                const count = cart.reduce((sum, i) => sum + i.quantity, 0);
+                const extras = [];
+                if (charges.service > 0) extras.push('service Rp' + formatRupiah(charges.service));
+                if (charges.tax > 0) extras.push((pricesIncludeTax ? 'termasuk pajak Rp' : 'pajak Rp') + formatRupiah(charges.tax));
+                if (discountAmount > 0) extras.push('diskon Rp' + formatRupiah(Math.min(discountAmount, subtotal)));
+                document.getElementById('payModalInfo').innerText = count + ' item' + (extras.length ? ' · ' + extras.join(' · ') : '');
 
                 calculateChange();
             }
@@ -896,10 +914,21 @@
                 }
             }
 
-            // QRIS Modal Open Trigger
-            document.getElementById('btnOpenQrisModal').addEventListener('click', function() {
+            // --- Payment sheet ------------------------------------------------
+            const paymentModalEl = document.getElementById('paymentModal');
+            const paymentModal = () => (window.bootstrap || bootstrap).Modal.getOrCreateInstance(paymentModalEl);
+
+            function setPayMethod(method) {
+                document.getElementById(method === 'qris' ? 'pmQris' : 'pmCash').checked = true;
+                document.getElementById('cash-panel').classList.toggle('d-none', method !== 'cash');
+                document.getElementById('qris-panel').classList.toggle('d-none', method !== 'qris');
+            }
+            document.querySelectorAll('input[name="pay_method"]').forEach(r =>
+                r.addEventListener('change', () => setPayMethod(r.value)));
+
+            document.getElementById('btnOpenPayment').addEventListener('click', function() {
                 if (cart.length === 0) {
-                    notify('warning', 'Keranjang belanja masih kosong!');
+                    notify('warning', 'Pesanan masih kosong!');
                     return;
                 }
                 const orderError = validateOrderInfo();
@@ -907,11 +936,13 @@
                     notify('warning', orderError);
                     return;
                 }
-                const total = getFinalTotal();
-                document.getElementById('qrisModalTotal').innerText = 'Rp' + formatRupiah(total);
-                const qrisModalEl = document.getElementById('qrisModal');
-                const modal = window.bootstrap ? new window.bootstrap.Modal(qrisModalEl) : new bootstrap.Modal(qrisModalEl);
-                modal.show();
+                setPayMethod('cash');
+                renderTotals();
+                paymentModal().show();
+            });
+            paymentModalEl.addEventListener('shown.bs.modal', () => cashPaidInput.focus());
+            cashPaidInput.addEventListener('keydown', e => {
+                if (e.key === 'Enter' && !btnCheckoutCash.disabled) btnCheckoutCash.click();
             });
 
             // Checkout Cash Action
@@ -927,10 +958,6 @@
 
             // Checkout QRIS Action
             document.getElementById('btnCheckoutQris').addEventListener('click', function() {
-                const qrisModalEl = document.getElementById('qrisModal');
-                const bs = window.bootstrap || bootstrap;
-                const modal = bs.Modal.getInstance(qrisModalEl);
-                if (modal) modal.hide();
                 processCheckout('qris', getFinalTotal());
             });
 
@@ -947,7 +974,7 @@
                 const type = getOrderType();
                 document.getElementById('tableWrap').classList.toggle('d-none', type !== 'dine_in');
                 document.getElementById('platformWrap').classList.toggle('d-none', type !== 'online');
-                customerNameInput.placeholder = type === 'online' ? 'Nama / ID pesanan online' : 'Nama pelanggan (opsional)';
+                customerNameInput.placeholder = type === 'online' ? 'Nama / ID pesanan' : 'Nama pelanggan';
                 const hint = document.getElementById('noTableHint');
                 if (hint) hint.classList.toggle('d-none', type !== 'dine_in');
             }
@@ -1009,6 +1036,7 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
+                        paymentModal().hide();
                         // Reset Cart
                         cart = [];
                         discountInput.value = 0;
@@ -1148,6 +1176,7 @@
 
             function syncBillButtons() {
                 document.getElementById('btnSaveBill').disabled = cart.length === 0;
+                document.getElementById('btnOpenPayment').disabled = cart.length === 0;
                 document.getElementById('btnSendToBill').disabled = cart.length === 0;
             }
 
@@ -1213,7 +1242,7 @@
                         showCancelButton: true,
                         confirmButtonText: 'Ya, tambahkan',
                         cancelButtonText: 'Batal',
-                        confirmButtonColor: '#1d4ed8',
+                        confirmButtonColor: '#8b5a3c',
                     });
                     if (answer.isConfirmed) sendItemsToBill(existing);
                     return;
@@ -1382,7 +1411,7 @@
                     showCancelButton: true,
                     confirmButtonText: 'Batalkan Bill',
                     cancelButtonText: 'Kembali',
-                    confirmButtonColor: '#dc2626',
+                    confirmButtonColor: '#b84a3a',
                 });
                 if (!result.isConfirmed) return;
                 try {
@@ -1426,9 +1455,9 @@
                 const badge = document.getElementById('stockBadge-' + id);
                 if (badge) {
                     const min = parseInt(item.dataset.minStock || '0', 10);
-                    badge.innerText = 'Stok: ' + stock;
-                    badge.className = 'badge rounded-pill pos-thumb-stock ' +
-                        (stock <= min ? 'bg-danger' : 'bg-success');
+                    badge.innerText = stock <= 0 ? 'Habis' : 'Sisa ' + stock;
+                    badge.className = 'badge pos-thumb-stock' + (stock <= min ? ' bg-danger' : '');
+                    item.classList.toggle('is-out', stock <= 0);
                 }
 
                 // Keep the in-memory cart's stock ceiling in sync.
@@ -1494,7 +1523,8 @@
 
                     if (bluetoothCharacteristic) {
                         statusText.innerText = 'Bluetooth: ' + bluetoothDevice.name;
-                        statusBtn.className = 'btn btn-sm btn-success rounded-pill px-3 py-1.5 fw-semibold';
+                        statusBtn.className = 'btn btn-success btn-icon';
+                        statusBtn.title = 'Printer terhubung: ' + bluetoothDevice.name;
                         notify('success', 'Berhasil terhubung ke Printer Bluetooth: ' + bluetoothDevice.name);
                     } else {
                         statusText.innerText = 'Gagal Saluran';

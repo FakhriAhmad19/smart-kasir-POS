@@ -6,80 +6,55 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? 'Smart Kasir POS UMKM' }}</title>
     
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
-    @vite(['resources/js/app.js'])
+    @include('partials.head-assets')
 </head>
 <body class="bg-light">
+    @php
+        $authUser = auth()->user();
+        $roleName = $authUser->getRoleNames()->first() ?? 'user';
+        $initials = collect(preg_split('/\s+/', trim(preg_replace('/\(.*?\)/', '', $authUser->name))))
+            ->filter()->take(2)->map(fn ($w) => mb_strtoupper(mb_substr($w, 0, 1)))->join('');
+        $hasShift = $authUser->can('process-transaction')
+            && \App\Models\Shift::where('app_user_id', $authUser->id)->where('status', 'open')->exists();
+    @endphp
     <div class="d-flex min-vh-100">
         <!-- Sidebar Backdrop (mobile/tablet only) -->
         <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
         <!-- Sidebar Navigation -->
         <aside class="app-sidebar p-3 d-flex flex-column" id="appSidebar">
-            <!-- Brand Logo -->
-            <div class="sidebar-brand d-flex align-items-center gap-2 mb-2">
-                <div class="d-flex align-items-center justify-content-center" style="background: #1d4ed8; color: #fff; border-radius: 8px; width: 40px; height: 40px;">
-                    <i class="bi bi-shop fs-5"></i>
-                </div>
-                <div>
-                    <h5 class="fw-bold m-0" style="font-size: 1.05rem; color: #111827;">Smart Kasir</h5>
-                    <small class="fw-semibold" style="font-size: 0.68rem; letter-spacing: 0.06em; color: #9ca3af; text-transform: uppercase;">POS UMKM</small>
+            <div class="sidebar-brand d-flex align-items-center gap-2">
+                <span class="brand-mark"><i class="bi bi-cup-hot-fill"></i></span>
+                <div class="min-w-0">
+                    <div class="brand-name">{{ \App\Models\Setting::get('store_name', 'Smart Kasir') }}</div>
+                    <div class="brand-tag">Café POS</div>
                 </div>
             </div>
 
-            <!-- Sidebar Navigation Links -->
-            <nav class="nav flex-column flex-grow-1 overflow-y-auto py-2">
-                <small class="text-uppercase fw-bold text-muted px-3 mb-2" style="font-size: 0.65rem; letter-spacing: 0.08em; color: #64748b !important;">Main Menu</small>
-                
+            <nav class="sidebar-nav nav flex-column flex-grow-1 overflow-y-auto py-1">
+                <span class="sidebar-section">Harian</span>
+
                 @can('view-dashboard')
                 <a href="{{ route('dashboard') }}" class="sidebar-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                    <i class="bi bi-grid-1x2-fill"></i> <span>Dashboard</span>
+                    <i class="bi bi-house-heart"></i> <span>Beranda</span>
                 </a>
                 @endcan
 
                 @can('process-transaction')
-                    @php
-                        $hasShift = \App\Models\Shift::where('app_user_id', auth()->id())->where('status', 'open')->exists();
-                    @endphp
                     @if($hasShift)
                         <a href="{{ route('pos.index') }}" class="sidebar-link {{ request()->routeIs('pos.*') ? 'active' : '' }}">
-                            <i class="bi bi-calculator-fill"></i> <span>Kasir (POS)</span>
+                            <i class="bi bi-cup-straw"></i> <span>Kasir</span>
                         </a>
                     @else
-                        <a href="{{ route('shifts.open_form') }}" class="sidebar-link text-muted" title="Buka shift kasir dahulu">
-                            <i class="bi bi-calculator-fill"></i> <span>Kasir (POS) - Buka Shift</span>
+                        <a href="{{ route('shifts.open_form') }}" class="sidebar-link is-disabled" title="Buka shift kasir dahulu">
+                            <i class="bi bi-cup-straw"></i> <span>Kasir <small class="opacity-75">· buka shift</small></span>
                         </a>
                     @endif
                 @endcan
 
-                @can('manage-shifts')
-                <a href="{{ route('shifts.index') }}" class="sidebar-link {{ request()->routeIs('shifts.*') ? 'active' : '' }}">
-                    <i class="bi bi-clock-history"></i> <span>Shift Kasir & Laci</span>
-                </a>
-                @endcan
-
-                <small class="text-uppercase fw-bold text-muted px-3 mt-3 mb-2" style="font-size: 0.65rem; letter-spacing: 0.08em; color: #64748b !important;">Katalog & Stok</small>
-
-                @can('manage-categories')
-                <a href="{{ route('categories.index') }}" class="sidebar-link {{ request()->routeIs('categories.*') ? 'active' : '' }}">
-                    <i class="bi bi-tags-fill"></i> <span>Kategori Barang</span>
-                </a>
-                @endcan
-
-                @can('manage-products')
-                <a href="{{ route('products.index') }}" class="sidebar-link {{ request()->routeIs('products.*') ? 'active' : '' }}">
-                    <i class="bi bi-box-seam-fill"></i> <span>Master Produk</span>
-                </a>
-                <a href="{{ route('raw-materials.index') }}" class="sidebar-link {{ request()->routeIs('raw-materials.*') ? 'active' : '' }}">
-                    <i class="bi bi-droplet-half"></i> <span>Master Bahan Baku</span>
-                </a>
                 @can('view-barista-tickets')
                 <a href="{{ route('tickets.index', 'barista') }}" class="sidebar-link {{ request()->routeIs('tickets.*') && request()->route('station') === 'barista' ? 'active' : '' }}">
-                    <i class="bi bi-cup-hot-fill"></i> <span>Tiket Barista</span>
+                    <i class="bi bi-cup-hot"></i> <span>Tiket Barista</span>
                 </a>
                 @endcan
                 @can('view-kitchen-tickets')
@@ -87,142 +62,152 @@
                     <i class="bi bi-fire"></i> <span>Tiket Kitchen</span>
                 </a>
                 @endcan
-                <a href="{{ route('modifiers.index') }}" class="sidebar-link {{ request()->routeIs('modifiers.*') ? 'active' : '' }}">
-                    <i class="bi bi-sliders"></i> <span>Varian & Modifier</span>
+
+                @can('manage-shifts')
+                <a href="{{ route('shifts.index') }}" class="sidebar-link {{ request()->routeIs('shifts.*') ? 'active' : '' }}">
+                    <i class="bi bi-clock-history"></i> <span>Shift & Laci</span>
                 </a>
+                @endcan
+
+                @canany(['manage-categories', 'manage-products', 'manage-stock-in', 'manage-adjustments'])
+                <span class="sidebar-section">Menu & Stok</span>
+                @endcanany
+
+                @can('manage-products')
+                <a href="{{ route('products.index') }}" class="sidebar-link {{ request()->routeIs('products.*') ? 'active' : '' }}">
+                    <i class="bi bi-journal-richtext"></i> <span>Daftar Menu</span>
+                </a>
+                <a href="{{ route('modifiers.index') }}" class="sidebar-link {{ request()->routeIs('modifiers.*') ? 'active' : '' }}">
+                    <i class="bi bi-sliders2"></i> <span>Varian & Modifier</span>
+                </a>
+                @endcan
+
+                @can('manage-categories')
+                <a href="{{ route('categories.index') }}" class="sidebar-link {{ request()->routeIs('categories.*') ? 'active' : '' }}">
+                    <i class="bi bi-tags"></i> <span>Kategori</span>
+                </a>
+                @endcan
+
+                @can('manage-products')
                 <a href="{{ route('tables.index') }}" class="sidebar-link {{ request()->routeIs('tables.*') ? 'active' : '' }}">
-                    <i class="bi bi-grid-3x3-gap-fill"></i> <span>Meja</span>
+                    <i class="bi bi-grid-3x3-gap"></i> <span>Meja</span>
+                </a>
+                <a href="{{ route('raw-materials.index') }}" class="sidebar-link {{ request()->routeIs('raw-materials.*') ? 'active' : '' }}">
+                    <i class="bi bi-droplet-half"></i> <span>Bahan Baku</span>
                 </a>
                 @endcan
 
                 @can('manage-stock-in')
                 <a href="{{ route('stock-ins.index') }}" class="sidebar-link {{ request()->routeIs('stock-ins.*') ? 'active' : '' }}">
-                    <i class="bi bi-box-arrow-in-down-left"></i> <span>Barang Masuk (Restock)</span>
+                    <i class="bi bi-box-arrow-in-down"></i> <span>Barang Masuk</span>
                 </a>
                 @endcan
 
                 @can('manage-adjustments')
                 <a href="{{ route('adjustments.index') }}" class="sidebar-link {{ request()->routeIs('adjustments.*') ? 'active' : '' }}">
-                    <i class="bi bi-sliders"></i> <span>Stock Opname & Audit</span>
+                    <i class="bi bi-clipboard-check"></i> <span>Stock Opname</span>
                 </a>
                 @endcan
 
-                <small class="text-uppercase fw-bold text-muted px-3 mt-3 mb-2" style="font-size: 0.65rem; letter-spacing: 0.08em; color: #64748b !important;">Keuangan & Pengaturan</small>
-
-                @can('manage-expenses')
-                <a href="{{ route('expenses.index') }}" class="sidebar-link {{ request()->routeIs('expenses.*') ? 'active' : '' }}">
-                    <i class="bi bi-receipt-cutoff"></i> <span>Beban Operasional</span>
-                </a>
-                @endcan
+                @canany(['manage-expenses', 'view-financial-reports', 'manage-users', 'manage-settings'])
+                <span class="sidebar-section">Keuangan & Toko</span>
+                @endcanany
 
                 @can('view-financial-reports')
                 <a href="{{ route('reports.index') }}" class="sidebar-link {{ request()->routeIs('reports.index') ? 'active' : '' }}">
-                    <i class="bi bi-bar-chart-line-fill"></i> <span>Laporan Penjualan</span>
+                    <i class="bi bi-graph-up-arrow"></i> <span>Laporan Penjualan</span>
                 </a>
                 <a href="{{ route('reports.reconciliation') }}" class="sidebar-link {{ request()->routeIs('reports.reconciliation') ? 'active' : '' }}">
                     <i class="bi bi-wallet2"></i> <span>Rekonsiliasi Kasir</span>
                 </a>
                 @endcan
 
+                @can('manage-expenses')
+                <a href="{{ route('expenses.index') }}" class="sidebar-link {{ request()->routeIs('expenses.*') ? 'active' : '' }}">
+                    <i class="bi bi-receipt-cutoff"></i> <span>Pengeluaran</span>
+                </a>
+                @endcan
+
                 @can('manage-users')
                 <a href="{{ route('users.index') }}" class="sidebar-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
-                    <i class="bi bi-people-fill"></i> <span>Manajemen Pengguna</span>
+                    <i class="bi bi-people"></i> <span>Tim & Akses</span>
                 </a>
                 @endcan
 
                 @can('manage-settings')
                 <a href="{{ route('settings.index') }}" class="sidebar-link {{ request()->routeIs('settings.*') ? 'active' : '' }}">
-                    <i class="bi bi-gear-fill"></i> <span>Pengaturan Toko</span>
+                    <i class="bi bi-gear"></i> <span>Pengaturan</span>
                 </a>
                 @endcan
-
-                <!-- Logout Link in Nav -->
-                <small class="text-uppercase fw-bold text-muted px-3 mt-3 mb-2" style="font-size: 0.65rem; letter-spacing: 0.08em; color: #64748b !important;">Sistem</small>
-                <a href="#" class="sidebar-link text-danger hover-bg-danger js-logout-btn">
-                    <i class="bi bi-box-arrow-right text-danger"></i> <span class="text-danger fw-bold">Keluar / Logout</span>
-                </a>
             </nav>
 
-            <!-- User Footer Info -->
-            <div class="pt-3 mt-auto" style="border-top: 1px solid var(--border-color);">
-                <div class="d-flex align-items-center justify-content-between">
-                    <div class="d-flex align-items-center gap-2 overflow-hidden">
-                        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; min-width: 38px; background: #eef2fb;">
-                            <i class="bi bi-person-fill" style="color: #1d4ed8; font-size: 1.1rem;"></i>
-                        </div>
-                        <div class="text-truncate">
-                            <div class="fw-semibold text-truncate" style="font-size: 0.85rem; color: #111827;">{{ auth()->user()->name }}</div>
-                            <span class="text-uppercase" style="font-size: 0.65rem; color: #6b7280; letter-spacing: 0.03em;">
-                                {{ auth()->user()->getRoleNames()->first() ?? 'User' }}
-                            </span>
-                        </div>
-                    </div>
-                    <button type="button" class="btn btn-sm btn-light border-0 p-1 js-logout-btn" style="color: #dc2626;" title="Keluar / Logout">
-                        <i class="bi bi-power fs-5"></i>
-                    </button>
-                </div>
+            <div class="sidebar-user d-flex align-items-center justify-content-between gap-2">
+                <a href="{{ route('profile.edit') }}" class="d-flex align-items-center gap-2 min-w-0 text-decoration-none">
+                    <span class="avatar">{{ $initials ?: 'U' }}</span>
+                    <span class="min-w-0">
+                        <span class="d-block fw-semibold text-truncate" style="font-size: .85rem; color: #fff6ea;">{{ $authUser->name }}</span>
+                        <span class="d-block text-capitalize" style="font-size: .7rem; color: var(--sidebar-muted);">{{ $roleName }}</span>
+                    </span>
+                </a>
+                <button type="button" class="btn btn-sm p-1 border-0 js-logout-btn" style="color: #f0b3a8;" title="Keluar" aria-label="Keluar">
+                    <i class="bi bi-box-arrow-right fs-5"></i>
+                </button>
             </div>
         </aside>
 
         <!-- Main Content Area -->
         <div class="flex-grow-1 d-flex flex-column min-w-0">
-            <!-- Top Navbar -->
-            <header class="bg-white border-bottom px-3 px-md-4 py-3 d-flex align-items-center justify-content-between sticky-top" style="background-color: #ffffff;">
-                <div class="d-flex align-items-center gap-2 gap-md-3" style="min-width: 0;">
+            <header class="app-topbar px-3 px-md-4 py-3 d-flex align-items-center justify-content-between gap-3 sticky-top">
+                <div class="d-flex align-items-center gap-2 gap-md-3 min-w-0">
                     <button type="button" class="sidebar-toggle-btn d-lg-none flex-shrink-0" id="sidebarToggleBtn" aria-label="Buka menu navigasi" aria-controls="appSidebar" aria-expanded="false">
-                        <i class="bi bi-list fs-3"></i>
+                        <i class="bi bi-list fs-4"></i>
                     </button>
-                    <h4 class="fw-bold m-0 text-dark text-truncate" style="font-size: clamp(1rem, 4vw, 1.35rem); min-width: 0;">{{ $header ?? 'Dashboard' }}</h4>
+                    <div class="min-w-0">
+                        <div class="topbar-greeting d-none d-sm-block"><span class="js-greeting">Halo</span>, {{ \Illuminate\Support\Str::of($authUser->name)->before(' (')->before(' ') }} ☕</div>
+                        <h1 class="topbar-title text-truncate">{{ $header ?? 'Beranda' }}</h1>
+                    </div>
                 </div>
-                <div class="d-flex align-items-center gap-2 gap-md-3 flex-shrink-0">
-                    <span class="text-secondary small d-none d-xl-inline bg-light px-3 py-1.5 rounded-pill border text-nowrap">
-                        <i class="bi bi-calendar3 me-1.5 text-primary"></i> {{ date('d M Y') }}
-                    </span>
+                <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                    <span class="chip d-none d-xl-inline-flex"><i class="bi bi-calendar3"></i> <span class="js-today">{{ now()->translatedFormat('d M Y') }}</span></span>
                     @can('process-transaction')
-                        @php
-                            $hasShift = \App\Models\Shift::where('app_user_id', auth()->id())->where('status', 'open')->exists();
-                        @endphp
                         @if($hasShift)
-                            <a href="{{ route('pos.index') }}" class="btn btn-primary btn-touch px-2.5 px-md-3.5 gap-2 shadow-sm fw-bold text-nowrap">
-                                <i class="bi bi-calculator fs-5"></i> <span class="d-none d-lg-inline">Buka Kasir POS</span>
+                            <a href="{{ route('pos.index') }}" class="btn btn-primary btn-touch gap-2 text-nowrap">
+                                <i class="bi bi-cup-straw"></i> <span class="d-none d-md-inline">Buka Kasir</span>
                             </a>
                         @else
-                            <a href="{{ route('shifts.open_form') }}" class="btn btn-outline-primary btn-touch px-2.5 px-md-3.5 gap-2 shadow-sm fw-bold text-nowrap" title="Buka shift kasir terlebih dahulu">
-                                <i class="bi bi-clock-history fs-5"></i> <span class="d-none d-lg-inline">Buka Shift</span>
+                            <a href="{{ route('shifts.open_form') }}" class="btn btn-outline-primary btn-touch gap-2 text-nowrap" title="Buka shift kasir terlebih dahulu">
+                                <i class="bi bi-clock-history"></i> <span class="d-none d-md-inline">Buka Shift</span>
                             </a>
                         @endif
                     @endcan
 
-                    <!-- Header Profile Dropdown with Logout -->
                     <div class="dropdown">
-                        <button class="btn btn-light bg-white border dropdown-toggle d-flex align-items-center gap-2 rounded-pill px-3 py-1.5 shadow-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-person-circle fs-5 text-primary"></i>
-                            <span class="fw-bold text-dark small d-none d-sm-inline">{{ auth()->user()->name }}</span>
+                        <button class="user-pill dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menu akun">
+                            <span class="avatar">{{ $initials ?: 'U' }}</span>
+                            <span class="fw-semibold small d-none d-sm-inline text-truncate" style="max-width: 140px;">{{ \Illuminate\Support\Str::of($authUser->name)->before(' (') }}</span>
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end rounded-3 shadow border-0 mt-2 p-2" style="min-width: 200px;">
-                            <li class="px-3 py-2 border-bottom mb-1">
-                                <div class="fw-bold text-dark small">{{ auth()->user()->name }}</div>
-                                <div class="text-muted small" style="font-size: 0.75rem;">{{ auth()->user()->email }}</div>
-                                <span class="badge bg-primary bg-opacity-10 text-primary mt-1 text-uppercase" style="font-size: 0.65rem;">
-                                    {{ auth()->user()->getRoleNames()->first() ?? 'User' }}
-                                </span>
+                        <ul class="dropdown-menu dropdown-menu-end mt-2 p-2" style="min-width: 220px;">
+                            <li class="px-2 py-2 mb-1 border-bottom">
+                                <div class="fw-bold small">{{ $authUser->name }}</div>
+                                <div class="text-muted" style="font-size: .75rem;">{{ $authUser->email }}</div>
+                                <span class="badge bg-primary-subtle text-primary-emphasis mt-1 text-capitalize">{{ $roleName }}</span>
                             </li>
                             <li>
-                                <a class="dropdown-menu-item dropdown-item rounded-2 py-2 text-dark small fw-semibold {{ request()->routeIs('profile.*') ? 'active' : '' }}" href="{{ route('profile.edit') }}">
-                                    <i class="bi bi-person-circle me-2 text-secondary"></i> Profil Saya
+                                <a class="dropdown-item py-2 small fw-semibold {{ request()->routeIs('profile.*') ? 'active' : '' }}" href="{{ route('profile.edit') }}">
+                                    <i class="bi bi-person me-2"></i> Profil Saya
                                 </a>
                             </li>
                             @can('manage-settings')
                             <li>
-                                <a class="dropdown-menu-item dropdown-item rounded-2 py-2 text-dark small fw-semibold" href="{{ route('settings.index') }}">
-                                    <i class="bi bi-gear me-2 text-secondary"></i> Pengaturan Toko
+                                <a class="dropdown-item py-2 small fw-semibold" href="{{ route('settings.index') }}">
+                                    <i class="bi bi-gear me-2"></i> Pengaturan Toko
                                 </a>
                             </li>
                             @endcan
                             <li><hr class="dropdown-divider my-1"></li>
                             <li>
-                                <button type="button" class="dropdown-item rounded-2 py-2 text-danger small fw-bold d-flex align-items-center js-logout-btn">
-                                    <i class="bi bi-box-arrow-right me-2 fs-6"></i> Keluar / Logout
+                                <button type="button" class="dropdown-item py-2 text-danger small fw-bold js-logout-btn">
+                                    <i class="bi bi-box-arrow-right me-2"></i> Keluar
                                 </button>
                             </li>
                         </ul>
@@ -250,7 +235,7 @@
                     icon: 'success',
                     title: 'Berhasil',
                     text: @json(session('success')),
-                    confirmButtonColor: '#1d4ed8',
+                    confirmButtonColor: '#8b5a3c',
                     confirmButtonText: 'OK',
                 });
             });
@@ -264,7 +249,7 @@
                     icon: 'error',
                     title: 'Gagal',
                     text: @json(session('error')),
-                    confirmButtonColor: '#1d4ed8',
+                    confirmButtonColor: '#8b5a3c',
                     confirmButtonText: 'OK',
                 });
             });
@@ -279,13 +264,13 @@
                     e.preventDefault();
                     Swal.fire({
                         icon: 'warning',
-                        title: 'Konfirmasi Keluar Aplikasi',
-                        text: 'Apakah Anda yakin ingin keluar dari sesi akun {{ auth()->user()->name }}?',
+                        title: 'Keluar dari akun?',
+                        text: 'Sesi {{ auth()->user()->name }} akan diakhiri.',
                         showCancelButton: true,
-                        confirmButtonText: 'Ya, Keluar Sesi',
+                        confirmButtonText: 'Ya, keluar',
                         cancelButtonText: 'Batal',
-                        confirmButtonColor: '#dc3545',
-                        cancelButtonColor: '#6c757d',
+                        confirmButtonColor: '#b84a3a',
+                        cancelButtonColor: '#8c7765',
                         reverseButtons: true,
                     }).then(function (result) {
                         if (result.isConfirmed) {
@@ -295,6 +280,17 @@
                 });
             });
         });
+    </script>
+
+    <!-- Greeting from the device clock (server runs in UTC) -->
+    <script>
+        (function () {
+            const h = new Date().getHours();
+            const text = h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 18 ? 'Selamat sore' : 'Selamat malam';
+            document.querySelectorAll('.js-greeting').forEach(el => el.textContent = text);
+            const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+            document.querySelectorAll('.js-today').forEach(el => el.textContent = today);
+        })();
     </script>
 
     <!-- Mobile/Tablet Sidebar Toggle Script -->
