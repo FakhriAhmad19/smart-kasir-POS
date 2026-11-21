@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Shift;
 use App\Models\Transaction;
 use App\Models\TransactionDetail;
+use App\Models\Setting;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
@@ -55,6 +56,7 @@ class OrderService
                     'total_amount' => $subtotal,
                     'discount_amount' => 0,
                     'tax_amount' => 0,
+                    'service_charge_amount' => 0,
                     'final_amount' => $subtotal,
                     'paid_amount' => 0,
                     'change_amount' => 0,
@@ -172,6 +174,7 @@ class OrderService
                 'modifiers' => $snapshot ?: null,
                 'modifier_total' => $modifierTotal,
                 'notes' => $notes !== '' ? $notes : null,
+                'station' => $product->station ?: 'barista',
                 'subtotal' => $lineSubtotal,
             ];
         }
@@ -201,7 +204,8 @@ class OrderService
         $this->recalculate($trx);
         $total = (float) $trx->total_amount;
         $discount = min((float) ($payment['discount'] ?? 0), $total);
-        $final = max(0, $total - $discount);
+        $pricing = $this->calculateCharges($total, $discount);
+        $final = $pricing['final'];
 
         if ($payment['method'] === 'qris') {
             $paid = $final;
@@ -223,6 +227,8 @@ class OrderService
             'app_user_id' => $userId,
             'app_shift_id' => $shift?->id,
             'discount_amount' => $discount,
+            'tax_amount' => $pricing['tax'],
+            'service_charge_amount' => $pricing['service'],
             'final_amount' => $final,
             'payment_method' => $payment['method'],
             'paid_amount' => $paid,
@@ -281,6 +287,7 @@ class OrderService
             'total_amount' => 0,
             'discount_amount' => 0,
             'tax_amount' => 0,
+            'service_charge_amount' => 0,
             'final_amount' => 0,
             'paid_amount' => 0,
             'change_amount' => 0,
@@ -305,6 +312,7 @@ class OrderService
                     'modifiers' => $detail->modifiers,
                     'modifier_total' => $detail->modifier_total,
                     'notes' => $detail->notes,
+                    'station' => $detail->station ?: 'barista',
                     'subtotal' => (float) $detail->selling_price * $qty,
                 ]);
             }
@@ -396,5 +404,24 @@ class OrderService
         }
 
         return [$snapshot, $total];
+    }
+
+    /** Calculate charges from the configured store rates. */
+    private function calculateCharges(float $subtotal, float $discount): array
+    {
+        $base = max(0, $subtotal - $discount);
+        $taxRate = max(0, (float) Setting::get('tax_rate', '0'));
+        $serviceRate = max(0, (float) Setting::get('service_charge_rate', '0'));
+        $service = round($base * $serviceRate / 100, 2);
+        $taxIncluded = Setting::get('prices_include_tax', '0') === '1';
+        $tax = $taxIncluded
+            ? round($base - ($taxRate > 0 ? $base / (1 + $taxRate / 100) : $base), 2)
+            : round(($base + $service) * $taxRate / 100, 2);
+
+        return [
+            'tax' => $tax,
+            'service' => $service,
+            'final' => max(0, $base + $service + ($taxIncluded ? 0 : $tax)),
+        ];
     }
 }

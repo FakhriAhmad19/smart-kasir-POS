@@ -9,7 +9,9 @@ use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RawMaterialController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\TicketController;
 use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\StockInController;
@@ -74,6 +76,15 @@ Route::middleware(['auth'])->group(function () {
     // Product Management
     Route::resource('products', ProductController::class)->except(['show'])
         ->middleware('can:manage-products');
+
+    Route::resource('raw-materials', RawMaterialController::class)->except(['show'])
+        ->parameters(['raw-materials' => 'rawMaterial'])
+        ->middleware('can:manage-products');
+
+    Route::get('/tickets/{station}', [TicketController::class, 'index'])
+        ->whereIn('station', ['barista', 'kitchen'])
+        ->name('tickets.index')
+        ->middleware('can:process-transaction');
 
     // Menu Modifiers & Variants (size, sugar level, toppings, ...)
     Route::resource('modifiers', ModifierGroupController::class)->except(['show'])

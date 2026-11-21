@@ -115,6 +115,18 @@
                 <span>-Rp{{ number_format($transaction->discount_amount, 0, ',', '.') }}</span>
             </div>
             @endif
+            @if($transaction->service_charge_amount > 0)
+            <div style="display: flex; justify-content: space-between;">
+                <span>Service:</span>
+                <span>Rp{{ number_format($transaction->service_charge_amount, 0, ',', '.') }}</span>
+            </div>
+            @endif
+            @if($transaction->tax_amount > 0)
+            <div style="display: flex; justify-content: space-between;">
+                <span>Pajak:</span>
+                <span>Rp{{ number_format($transaction->tax_amount, 0, ',', '.') }}</span>
+            </div>
+            @endif
             <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; margin-top: 4px;">
                 <span>TOTAL:</span>
                 <span>Rp{{ number_format($transaction->final_amount, 0, ',', '.') }}</span>

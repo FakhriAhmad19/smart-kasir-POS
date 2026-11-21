@@ -21,8 +21,13 @@ class SettingTest extends TestCase
             'store_phone' => '0811-2233-4455',
             'store_email' => 'toko@example.com',
             'receipt_footer_note' => 'Terima kasih telah berbelanja!',
+            'tax_rate' => 10,
+            'service_charge_rate' => 5,
+            'prices_include_tax' => 1,
         ])->assertRedirect('/settings');
 
         $this->assertEquals('TOKO SERBA ADA', Setting::get('store_name'));
+        $this->assertEquals('10', Setting::get('tax_rate'));
+        $this->assertEquals('1', Setting::get('prices_include_tax'));
     }
 }

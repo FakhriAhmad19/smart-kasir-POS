@@ -74,6 +74,17 @@
                 <a href="{{ route('products.index') }}" class="sidebar-link {{ request()->routeIs('products.*') ? 'active' : '' }}">
                     <i class="bi bi-box-seam-fill"></i> <span>Master Produk</span>
                 </a>
+                <a href="{{ route('raw-materials.index') }}" class="sidebar-link {{ request()->routeIs('raw-materials.*') ? 'active' : '' }}">
+                    <i class="bi bi-droplet-half"></i> <span>Master Bahan Baku</span>
+                </a>
+                @can('process-transaction')
+                <a href="{{ route('tickets.index', 'barista') }}" class="sidebar-link {{ request()->routeIs('tickets.*') && request()->route('station') === 'barista' ? 'active' : '' }}">
+                    <i class="bi bi-cup-hot-fill"></i> <span>Tiket Barista</span>
+                </a>
+                <a href="{{ route('tickets.index', 'kitchen') }}" class="sidebar-link {{ request()->routeIs('tickets.*') && request()->route('station') === 'kitchen' ? 'active' : '' }}">
+                    <i class="bi bi-fire"></i> <span>Tiket Kitchen</span>
+                </a>
+                @endcan
                 <a href="{{ route('modifiers.index') }}" class="sidebar-link {{ request()->routeIs('modifiers.*') ? 'active' : '' }}">
                     <i class="bi bi-sliders"></i> <span>Varian & Modifier</span>
                 </a>

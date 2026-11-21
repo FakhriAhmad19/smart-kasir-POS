@@ -18,7 +18,7 @@
                                 <option value="">-- Pilih Produk --</option>
                                 @foreach($products as $product)
                                     <option value="{{ $product->id }}" data-stock="{{ $product->stock }}" {{ old('app_product_id') == $product->id ? 'selected' : '' }}>
-                                        {{ $product->name }} (SKU: {{ $product->sku }} | Stok Sistem: {{ $product->stock }} pcs)
+                                        {{ $product->name }} (SKU: {{ $product->sku }} | Stok Sistem: {{ $product->stock }} {{ $product->unit }})
                                     </option>
                                 @endforeach
                             </select>
@@ -43,10 +43,10 @@
                         <div class="row g-3 mb-3">
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold text-muted">Stok Sistem Saat Ini</label>
-                                <input type="text" id="display_stock_system" class="form-control bg-light" value="0 pcs" readonly>
+                                <input type="text" id="display_stock_system" class="form-control bg-light" value="0" readonly>
                             </div>
                             <div class="col-md-6">
-                                <label for="quantity_actual" class="form-label fw-semibold">Jumlah Stok Fisik Sebenarnya (pcs) <span class="text-danger">*</span></label>
+                                <label for="quantity_actual" class="form-label fw-semibold">Jumlah Stok Fisik Sebenarnya <span class="text-danger">*</span></label>
                                 <input type="number" name="quantity_actual" id="quantity_actual" class="form-control @error('quantity_actual') is-invalid @enderror" min="0" value="{{ old('quantity_actual', 0) }}" required>
                                 <small class="text-muted">Masukkan total fisik riil di rak/gudang toko.</small>
                                 @error('quantity_actual')
@@ -82,7 +82,7 @@
                 const selectedOption = this.options[this.selectedIndex];
                 const stock = selectedOption.getAttribute('data-stock');
                 if (stock !== null) {
-                    stockDisplay.value = stock + ' pcs';
+                    stockDisplay.value = stock + ' ' + (selectedOption.textContent.match(/\| Stok Sistem: \d+ (\w+)/)?.[1] || 'unit');
                     actualInput.value = stock;
                 } else {
                     stockDisplay.value = '0 pcs';

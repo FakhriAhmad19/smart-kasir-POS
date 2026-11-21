@@ -206,6 +206,14 @@
                     <span class="text-muted small">Diskon (Rp):</span>
                     <input type="number" id="discountInput" class="form-control form-control-sm text-end" style="width: 120px;" placeholder="0" min="0" value="0">
                 </div>
+                <div class="d-flex justify-content-between text-muted small mb-1">
+                    <span>Service charge:</span>
+                    <span id="displayServiceCharge">Rp0</span>
+                </div>
+                <div class="d-flex justify-content-between text-muted small mb-2">
+                    <span>Pajak:</span>
+                    <span id="displayTax">Rp0</span>
+                </div>
                 <div class="d-flex justify-content-between align-items-center pt-2 border-top">
                     <h5 class="fw-bold text-dark m-0">TOTAL:</h5>
                     <h3 class="fw-extrabold text-primary m-0" id="displayFinalTotal">Rp0</h3>
@@ -485,6 +493,9 @@
             let cart = [];
             let activePaymentMethod = 'cash';
             let discountAmount = 0;
+            const taxRate = @json((float) \App\Models\Setting::get('tax_rate', '0'));
+            const serviceChargeRate = @json((float) \App\Models\Setting::get('service_charge_rate', '0'));
+            const pricesIncludeTax = @json(\App\Models\Setting::get('prices_include_tax', '0') === '1');
 
             const cartContainer = document.getElementById('cartContainer');
             const cartEmptyState = document.getElementById('cartEmptyState');
@@ -492,6 +503,8 @@
             const cartItemCount = document.getElementById('cartItemCount');
             const displaySubtotal = document.getElementById('displaySubtotal');
             const displayFinalTotal = document.getElementById('displayFinalTotal');
+            const displayServiceCharge = document.getElementById('displayServiceCharge');
+            const displayTax = document.getElementById('displayTax');
             const discountInput = document.getElementById('discountInput');
             const cashPaidInput = document.getElementById('cashPaidInput');
             const displayChange = document.getElementById('displayChange');
@@ -788,7 +801,16 @@
             }
 
             function getFinalTotal() {
-                return Math.max(0, getSubtotal() - discountAmount);
+                return calculateCharges(getSubtotal(), discountAmount).final;
+            }
+
+            function calculateCharges(subtotal, discount) {
+                const base = Math.max(0, subtotal - discount);
+                const service = Math.round(base * serviceChargeRate) / 100;
+                const tax = pricesIncludeTax
+                    ? Math.round((base - (taxRate > 0 ? base / (1 + taxRate / 100) : base)) * 100) / 100
+                    : Math.round((base + service) * taxRate) / 100;
+                return { service, tax, final: Math.max(0, base + service + (pricesIncludeTax ? 0 : tax)) };
             }
 
             function renderCart() {
@@ -839,9 +861,12 @@
 
             function renderTotals() {
                 const subtotal = getSubtotal();
-                const finalTotal = getFinalTotal();
+                const charges = calculateCharges(subtotal, discountAmount);
+                const finalTotal = charges.final;
 
                 displaySubtotal.innerText = 'Rp' + formatRupiah(subtotal);
+                displayServiceCharge.innerText = 'Rp' + formatRupiah(charges.service);
+                displayTax.innerText = 'Rp' + formatRupiah(charges.tax);
                 displayFinalTotal.innerText = 'Rp' + formatRupiah(finalTotal);
 
                 calculateChange();

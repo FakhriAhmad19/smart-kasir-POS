@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Product;
+use App\Models\Setting;
+use App\Models\Transaction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -65,5 +67,31 @@ class PosCheckoutTest extends TestCase
         $response->assertJson(['success' => true]);
 
         $this->assertEquals($initialStock - 2, $product->fresh()->stock);
+    }
+
+    public function test_checkout_applies_configured_tax_and_service_charge(): void
+    {
+        $this->seed();
+        Setting::set('tax_rate', '10');
+        Setting::set('service_charge_rate', '5');
+        Setting::set('prices_include_tax', '0');
+
+        $kasir = $this->demoUser('kasir@smartkasir.com');
+        $this->openShiftFor($kasir);
+        $product = Product::first();
+        $subtotal = (float) $product->selling_price;
+
+        $response = $this->actingAs($kasir)->postJson('/pos/checkout', [
+            'items' => [['id' => $product->id, 'quantity' => 1]],
+            'payment_method' => 'cash',
+            'discount_amount' => 0,
+            'paid_amount' => $subtotal * 1.155,
+        ])->assertOk();
+
+        $transaction = Transaction::latest('id')->first();
+        $this->assertEquals(round($subtotal * .05, 2), (float) $transaction->service_charge_amount);
+        $this->assertEquals(round(($subtotal * 1.05) * .10, 2), (float) $transaction->tax_amount);
+        $this->assertEquals(round($subtotal * 1.05 * 1.10, 2), (float) $transaction->final_amount);
+        $response->assertJsonPath('transaction.tax_amount', $transaction->tax_amount);
     }
 }

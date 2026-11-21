@@ -20,6 +20,7 @@ class TransactionDetail extends Model
         'modifiers',
         'modifier_total',
         'notes',
+        'station',
         'subtotal',
     ];
 

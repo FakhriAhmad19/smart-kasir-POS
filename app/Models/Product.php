@@ -22,6 +22,9 @@ class Product extends Model
         'min_stock',
         'image',
         'is_active',
+        'is_raw_material',
+        'unit',
+        'station',
     ];
 
     protected $casts = [
@@ -30,6 +33,7 @@ class Product extends Model
         'stock' => 'integer',
         'min_stock' => 'integer',
         'is_active' => 'boolean',
+        'is_raw_material' => 'boolean',
     ];
 
     protected $appends = ['image_url'];

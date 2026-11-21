@@ -54,6 +54,27 @@
                             @enderror
                         </div>
 
+                        <hr class="my-4">
+                        <h6 class="fw-bold text-dark mb-3">Pajak & Service Charge</h6>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label for="tax_rate" class="form-label fw-semibold">PB1 / Pajak (%)</label>
+                                <input type="number" name="tax_rate" id="tax_rate" class="form-control @error('tax_rate') is-invalid @enderror" value="{{ old('tax_rate', $settings['tax_rate']) }}" min="0" max="100" step="0.01" required>
+                                @error('tax_rate')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-6">
+                                <label for="service_charge_rate" class="form-label fw-semibold">Service Charge (%)</label>
+                                <input type="number" name="service_charge_rate" id="service_charge_rate" class="form-control @error('service_charge_rate') is-invalid @enderror" value="{{ old('service_charge_rate', $settings['service_charge_rate']) }}" min="0" max="100" step="0.01" required>
+                                @error('service_charge_rate')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                        </div>
+                        <div class="form-check mb-4">
+                            <input type="hidden" name="prices_include_tax" value="0">
+                            <input class="form-check-input" type="checkbox" name="prices_include_tax" value="1" id="prices_include_tax" @checked(old('prices_include_tax', $settings['prices_include_tax']) === '1')>
+                            <label class="form-check-label" for="prices_include_tax">Harga menu sudah termasuk pajak</label>
+                            <div class="form-text">Jika dicentang, pajak hanya ditampilkan sebagai bagian dari total, bukan ditambahkan lagi.</div>
+                        </div>
+
                         <div class="d-flex justify-content-end">
                             <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm">
                                 <i class="bi bi-save me-1"></i> Simpan Perubahan Pengaturan

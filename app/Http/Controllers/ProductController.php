@@ -13,7 +13,7 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::with('category')->latest();
+        $query = Product::with('category')->where('is_raw_material', false)->latest();
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -56,6 +56,7 @@ class ProductController extends Controller
             'selling_price' => 'required|numeric|min:0',
             'stock' => 'required|integer|min:0',
             'min_stock' => 'required|integer|min:0',
+            'station' => 'nullable|in:barista,kitchen',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'modifier_group_ids' => 'nullable|array',
             'modifier_group_ids.*' => 'integer|exists:app_modifier_groups,id',
@@ -80,6 +81,7 @@ class ProductController extends Controller
             'min_stock' => $request->min_stock,
             'image' => $imagePath,
             'is_active' => $request->has('is_active') ? true : false,
+            'station' => $request->input('station', 'barista'),
         ]);
 
         $product->modifierGroups()->sync($this->modifierSyncData($request));
@@ -89,6 +91,7 @@ class ProductController extends Controller
 
     public function edit(Product $product)
     {
+        abort_unless(! $product->is_raw_material, 404);
         $categories = Category::orderBy('name')->get();
         $modifierGroups = ModifierGroup::with('options')->orderBy('sort_order')->orderBy('name')->get();
         $product->load('modifierGroups');
@@ -106,6 +109,7 @@ class ProductController extends Controller
             'selling_price' => 'required|numeric|min:0',
             'stock' => 'required|integer|min:0',
             'min_stock' => 'required|integer|min:0',
+            'station' => 'nullable|in:barista,kitchen',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'remove_image' => 'nullable|boolean',
             'modifier_group_ids' => 'nullable|array',
@@ -132,6 +136,7 @@ class ProductController extends Controller
         $product->selling_price = $request->selling_price;
         $product->stock = $request->stock;
         $product->min_stock = $request->min_stock;
+        $product->station = $request->input('station', $product->station ?: 'barista');
         $product->is_active = $request->has('is_active');
         $product->save();
 

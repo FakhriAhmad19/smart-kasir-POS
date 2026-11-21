@@ -23,23 +23,28 @@ Hampir setiap minuman kafe punya pilihan. Dibutuhkan:
 - **Nomor antrean** otomatis yang reset setiap hari, dicetak di struk.
 - Harga berbeda untuk pesanan online (karena potongan komisi aplikasi) — opsional.
 
-### 3. Layar Barista / Tiket Pesanan
-- Setelah pembayaran, pesanan otomatis masuk ke **layar barista** (tablet di bar), dipisahkan per **station** (bar minuman / dapur makanan).
+### 3. Layar Barista / Tiket Pesanan — ✅ Tiket station selesai (21 Nov 2026)
+- Setelah pembayaran, pesanan otomatis masuk ke **layar tiket** dan dipisahkan per **station**: Barista (minuman) atau Kitchen (makanan).
+- Station menu dapat diatur dari Master Produk; item bahan baku tidak masuk POS/tiket.
+- Tersedia halaman Tiket Barista dan Tiket Kitchen dengan refresh manual, menampilkan nomor antrean, meja/nama, modifier, dan catatan item.
 - Barista menandai pesanan "sedang dibuat" → "siap", lalu nomor antrean/nama pelanggan dipanggil.
 - Opsional: **layar antrean untuk pelanggan** (menampilkan nomor yang sedang dibuat & siap diambil).
 - Alternatif lebih murah: **cetak tiket/stiker cup** otomatis (nama, menu, modifier) ke printer bar. Fitur printer Bluetooth sudah ada dan bisa dikembangkan.
 
-### 4. Pajak & Service Charge
+### 4. Pajak & Service Charge — ✅ Selesai (21 Nov 2026)
 - PB1 (umumnya 10%) dan service charge (opsional, 5–10%) yang dapat diatur di menu Setting, termasuk opsi harga sudah termasuk pajak atau belum.
-- Kolom `tax_amount` sudah tersedia di tabel transaksi, namun saat ini selalu bernilai 0.
+- Tarif disimpan di Setting, dihitung server-side saat pembayaran, disimpan ke transaksi, dan dicetak di struk.
 
 ---
 
 ## Tahap 2 — Penting untuk Operasional & Profit
 
-### 5. Resep & Stok Bahan Baku
-Kafe menjual minuman racikan, bukan barang jadi. Dibutuhkan:
+### 5. Stok Bahan Baku — ✅ Master selesai (21 Nov 2026)
+Kafe menjual minuman racikan, bukan barang jadi. Untuk tahap ini tersedia:
 - Master **bahan baku**: biji kopi, susu, sirup, cup, sedotan, dll., dengan satuan gram / ml / pcs.
+- Stok masuk dan stock opname dapat mencatat bahan baku tanpa menampilkannya sebagai menu kasir.
+- Resep dan pemotongan stok otomatis **belum dikerjakan**, sesuai scope saat ini.
+- Dibutuhkan pada tahap lanjutan:
 - **Resep per menu dan per varian**, contoh: Es Kopi Susu Large = 18 g espresso + 150 ml susu + 30 ml gula aren + 1 cup L.
 - **Modifier ikut memotong stok**, misalnya extra shot = +9 g kopi, oat milk menggantikan fresh milk.
 - Stok bahan berkurang otomatis saat terjual, sehingga **HPP dihitung dari resep**.
@@ -87,9 +92,9 @@ Tidak sepenting di rumah makan, tapi berguna untuk pelanggan yang duduk lama:
 | 1 ✅ | Varian & modifier (#1) | Kebutuhan utama kafe; mengubah struktur item pesanan |
 | 2 ✅ | Tipe pesanan, meja, nama & nomor antrean (#2) | Fondasi alur pesanan kafe |
 | 3 ✅ | Open bill per meja & split bill (#6) | **Dinaikkan**: kafe melayani bayar di depan *dan* bayar di akhir |
-| 4 | Pajak & service charge (#4) | Mempengaruhi perhitungan total |
+| 4 ✅ | Pajak & service charge (#4) | Mempengaruhi perhitungan total |
 | 5 | Layar barista / tiket cup (#3) | Bergantung pada data pesanan & modifier |
-| 6 | Resep & bahan baku (#5) | Bergantung pada data menu, varian & modifier |
+| 6 | Resep & pemakaian bahan baku (#5 lanjutan) | Bergantung pada data menu, varian & modifier |
 
 Poin #1, #2, dan #4 sebaiknya dikerjakan lebih dulu karena mengubah struktur data inti (tabel pesanan, item pesanan, modifier). Jika ditunda, proses migrasi data akan lebih rumit.
 

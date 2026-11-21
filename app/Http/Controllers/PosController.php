@@ -23,6 +23,7 @@ class PosController extends Controller
         $categories = Category::orderBy('name')->get();
         $products = Product::with(['category', 'modifierGroups.activeOptions'])
             ->where('is_active', true)
+            ->where('is_raw_material', false)
             ->orderBy('name')
             ->get();
 
@@ -53,7 +54,7 @@ class PosController extends Controller
 
     public function search(Request $request)
     {
-        $query = Product::with('category')->where('is_active', true);
+        $query = Product::with('category')->where('is_active', true)->where('is_raw_material', false);
 
         if ($request->filled('keyword')) {
             $keyword = trim($request->keyword);
@@ -84,7 +85,7 @@ class PosController extends Controller
      */
     public function stocks()
     {
-        $stocks = Product::where('is_active', true)->get(['id', 'stock', 'min_stock']);
+        $stocks = Product::where('is_active', true)->where('is_raw_material', false)->get(['id', 'stock', 'min_stock']);
 
         return response()->json([
             'success' => true,
