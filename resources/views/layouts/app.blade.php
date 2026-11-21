@@ -74,6 +74,12 @@
                 <a href="{{ route('products.index') }}" class="sidebar-link {{ request()->routeIs('products.*') ? 'active' : '' }}">
                     <i class="bi bi-box-seam-fill"></i> <span>Master Produk</span>
                 </a>
+                <a href="{{ route('modifiers.index') }}" class="sidebar-link {{ request()->routeIs('modifiers.*') ? 'active' : '' }}">
+                    <i class="bi bi-sliders"></i> <span>Varian & Modifier</span>
+                </a>
+                <a href="{{ route('tables.index') }}" class="sidebar-link {{ request()->routeIs('tables.*') ? 'active' : '' }}">
+                    <i class="bi bi-grid-3x3-gap-fill"></i> <span>Meja</span>
+                </a>
                 @endcan
 
                 @can('manage-stock-in')
@@ -319,5 +325,6 @@
             });
         });
     </script>
+    @stack('scripts')
 </body>
 </html>

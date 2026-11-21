@@ -72,15 +72,9 @@
                             </div>
                         </div>
 
-                        <div class="mb-4">
-                            <label class="form-label fw-semibold small">Ganti Foto Produk (Opsional)</label>
-                            <input type="file" name="image" class="form-control" accept="image/*">
-                            @if($product->image)
-                                <div class="mt-2 text-muted small">
-                                    Foto saat ini: <a href="{{ asset('storage/' . $product->image) }}" target="_blank">Lihat Gambar</a>
-                                </div>
-                            @endif
-                        </div>
+                        @include('products._image-field', ['product' => $product])
+
+                        @include('products._modifier-field', ['product' => $product])
 
                         <div class="form-check form-switch mb-4">
                             <input class="form-check-input" type="checkbox" name="is_active" id="is_active" value="1" {{ old('is_active', $product->is_active) ? 'checked' : '' }}>

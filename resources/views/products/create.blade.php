@@ -71,10 +71,9 @@
                             </div>
                         </div>
 
-                        <div class="mb-4">
-                            <label class="form-label fw-semibold small">Foto Produk (Opsional)</label>
-                            <input type="file" name="image" class="form-control" accept="image/*">
-                        </div>
+                        @include('products._image-field')
+
+                        @include('products._modifier-field')
 
                         <div class="form-check form-switch mb-4">
                             <input class="form-check-input" type="checkbox" name="is_active" id="is_active" value="1" checked>

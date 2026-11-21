@@ -69,8 +69,8 @@
                                 <td>
                                     <div class="d-flex align-items-center gap-3">
                                         <div class="bg-light rounded-3 d-flex align-items-center justify-content-center text-secondary border shadow-sm" style="width: 44px; height: 44px; min-width: 44px;">
-                                            @if($product->image)
-                                                <img src="{{ asset('storage/' . $product->image) }}" alt="{{ $product->name }}" class="rounded-3 w-100 h-100 object-fit-cover">
+                                            @if($product->image_url)
+                                                <img src="{{ $product->image_url }}" alt="{{ $product->name }}" class="rounded-3 w-100 h-100 object-fit-cover" loading="lazy">
                                             @else
                                                 <i class="bi bi-box-seam fs-4 text-primary"></i>
                                             @endif

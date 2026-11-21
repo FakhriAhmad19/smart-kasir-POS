@@ -2,13 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\OrderException;
+use App\Models\CafeTable;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Transaction;
-use App\Models\TransactionDetail;
+use App\Services\OrderService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class PosController extends Controller
 {
@@ -19,12 +21,34 @@ class PosController extends Controller
     public function index()
     {
         $categories = Category::orderBy('name')->get();
-        $products = Product::with('category')
+        $products = Product::with(['category', 'modifierGroups.activeOptions'])
             ->where('is_active', true)
             ->orderBy('name')
             ->get();
 
-        return view('pos.index', compact('categories', 'products'));
+        // Modifier definitions per product for the selection modal, keyed
+        // by product id. Only products that actually have groups are sent.
+        $productModifiers = $products
+            ->filter(fn ($p) => $p->modifierGroups->isNotEmpty())
+            ->mapWithKeys(fn ($p) => [$p->id => $p->modifierGroups
+                ->filter(fn ($g) => $g->activeOptions->isNotEmpty())
+                ->map(fn ($g) => [
+                    'id' => $g->id,
+                    'name' => $g->name,
+                    'min' => $g->requiredMin(),
+                    'max' => $g->max_select,
+                    'label' => $g->selectionLabel(),
+                    'options' => $g->activeOptions->map(fn ($o) => [
+                        'id' => $o->id,
+                        'name' => $o->name,
+                        'price' => (float) $o->price,
+                        'is_default' => $o->is_default,
+                    ])->values(),
+                ])->values()]);
+
+        $tables = CafeTable::where('is_active', true)->ordered()->get(['id', 'name', 'area', 'capacity']);
+
+        return view('pos.index', compact('categories', 'products', 'productModifiers', 'tables'));
     }
 
     public function search(Request $request)
@@ -68,164 +92,209 @@ class PosController extends Controller
         ]);
     }
 
-    public function checkout(Request $request)
+    /** Pay-now checkout (bayar di depan). */
+    public function checkout(Request $request, OrderService $orders)
     {
-        $request->validate([
+        $request->validate(
+            $this->itemRules() + $this->orderInfoRules() + $this->paymentRules(),
+            $this->messages()
+        );
+
+        return $this->respond(fn () => $orders->create(
+            $request->items,
+            $this->orderInfo($request),
+            $this->payment($request),
+            auth()->id(),
+            $request->notes ?? null,
+        ), 'Transaksi berhasil diproses!', withReceipt: true);
+    }
+
+    /** List open bills (also used to show which tables are occupied). */
+    public function openBills()
+    {
+        $bills = Transaction::open()
+            ->withCount('details')
+            ->orderBy('created_at')
+            ->get(['id', 'invoice_number', 'order_type', 'online_platform', 'app_table_id', 'table_name', 'customer_name', 'queue_number', 'total_amount', 'created_at']);
+
+        return response()->json(['success' => true, 'bills' => $bills]);
+    }
+
+    public function showBill(Transaction $bill)
+    {
+        abort_unless($bill->isOpen(), 404);
+
+        return response()->json([
+            'success' => true,
+            'bill' => $bill->load(['details.product:id,name,image', 'opener:id,name']),
+        ]);
+    }
+
+    /** Save the cart as a new open bill (bayar nanti). */
+    public function storeBill(Request $request, OrderService $orders)
+    {
+        $request->validate($this->itemRules() + $this->orderInfoRules(), $this->messages());
+
+        $info = $this->orderInfo($request);
+        if ($info['order_type'] !== 'dine_in' && ! $info['customer_name']) {
+            throw ValidationException::withMessages([
+                'customer_name' => 'Isi nama pelanggan agar bill take away / online mudah dikenali.',
+            ]);
+        }
+
+        return $this->respond(
+            fn () => $orders->create($request->items, $info, null, auth()->id(), $request->notes ?? null),
+            'Bill berhasil dibuka.'
+        );
+    }
+
+    public function addBillItems(Request $request, Transaction $bill, OrderService $orders)
+    {
+        $request->validate($this->itemRules(), $this->messages());
+
+        return $this->respond(fn () => $orders->addItems($bill, $request->items), 'Pesanan ditambahkan ke bill.');
+    }
+
+    public function payBill(Request $request, Transaction $bill, OrderService $orders)
+    {
+        $request->validate($this->paymentRules() + [
+            'lines' => 'nullable|array|min:1',
+            'lines.*.detail_id' => 'required|integer',
+            'lines.*.quantity' => 'required|integer|min:0',
+        ], $this->messages());
+
+        $lines = $request->has('lines')
+            ? collect($request->lines)->map(fn ($l) => ['detail_id' => (int) $l['detail_id'], 'quantity' => (int) $l['quantity']])->all()
+            : null;
+
+        return $this->respond(
+            fn () => $orders->pay($bill, $this->payment($request), auth()->id(), $lines),
+            'Pembayaran berhasil!',
+            withReceipt: true
+        );
+    }
+
+    public function cancelBill(Request $request, Transaction $bill, OrderService $orders)
+    {
+        $request->validate(['reason' => 'required|string|min:3|max:255'], [
+            'reason.required' => 'Alasan pembatalan wajib diisi.',
+        ]);
+
+        return $this->respond(
+            fn () => $orders->cancel($bill, auth()->id(), trim($request->reason)),
+            'Bill dibatalkan dan stok dikembalikan.'
+        );
+    }
+
+    // ------------------------------------------------------------------
+
+    private function respond(callable $action, string $message, bool $withReceipt = false)
+    {
+        try {
+            $trx = $action();
+        } catch (OrderException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Log the real SQL error so genuine failures are diagnosable
+            // instead of hidden behind the generic user-facing message.
+            \Illuminate\Support\Facades\Log::error('POS order failed', [
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Transaksi gagal disimpan karena gangguan sistem. Silakan coba lagi.',
+            ], 422);
+        }
+
+        $trx->refresh()->load(['details.product', 'user']);
+        $payload = ['success' => true, 'message' => $message, 'transaction' => $trx];
+        if ($withReceipt) {
+            $payload['receipt_html'] = view('pos.receipt_content', ['transaction' => $trx, 'is_modal' => true])->render();
+        }
+
+        return response()->json($payload);
+    }
+
+    private function itemRules(): array
+    {
+        return [
             'items' => 'required|array|min:1',
             'items.*.id' => 'required|exists:app_products,id',
             'items.*.quantity' => 'required|integer|min:1',
+            'items.*.modifier_option_ids' => 'nullable|array|max:50',
+            'items.*.modifier_option_ids.*' => 'integer',
+            'items.*.notes' => 'nullable|string|max:255',
+        ];
+    }
+
+    private function orderInfoRules(): array
+    {
+        return [
+            // Older clients that send no order info are treated as take-away.
+            'order_type' => 'nullable|in:' . implode(',', array_keys(Transaction::ORDER_TYPES)),
+            'online_platform' => 'nullable|required_if:order_type,online|in:' . implode(',', Transaction::ONLINE_PLATFORMS),
+            'table_id' => [
+                'nullable',
+                'required_if:order_type,dine_in',
+                'integer',
+                Rule::exists('app_tables', 'id')->where('is_active', true),
+            ],
+            'customer_name' => 'nullable|string|max:100',
+        ];
+    }
+
+    private function paymentRules(): array
+    {
+        return [
             'payment_method' => 'required|in:cash,qris',
             'discount_amount' => 'nullable|numeric|min:0',
             'paid_amount' => 'required|numeric|min:0',
-        ]);
+        ];
+    }
 
-        $items = $request->items;
-        $paymentMethod = $request->payment_method;
-        $discountAmount = (float) ($request->discount_amount ?? 0);
-        $paidAmountInput = (float) $request->paid_amount;
+    private function messages(): array
+    {
+        return [
+            'table_id.required_if' => 'Pesanan dine-in wajib memilih meja.',
+            'table_id.exists' => 'Meja yang dipilih tidak tersedia.',
+            'online_platform.required_if' => 'Pilih platform pesanan online.',
+        ];
+    }
 
-        // Active shift is guaranteed by the ensure.shift.open middleware,
-        // but fetch defensively so the transaction is always tied to a shift.
-        $activeShift = \App\Models\Shift::where('app_user_id', auth()->id())
-            ->where('status', 'open')
-            ->first();
+    private function orderInfo(Request $request): array
+    {
+        $orderType = $request->order_type ?: 'take_away';
+        $table = $orderType === 'dine_in' ? CafeTable::find($request->table_id) : null;
 
-        // Retry the whole transaction if the generated invoice number collides
-        // with a concurrent checkout (invoice_number unique constraint violation).
-        $maxAttempts = 5;
+        return [
+            'order_type' => $orderType,
+            'online_platform' => $orderType === 'online' ? $request->online_platform : null,
+            'app_table_id' => $table?->id,
+            'table_name' => $table?->name,
+            'customer_name' => $request->filled('customer_name') ? trim($request->customer_name) : null,
+        ];
+    }
 
-        for ($attempt = 1; ; $attempt++) {
-            try {
-                $transaction = DB::transaction(function () use ($items, $paymentMethod, $discountAmount, $paidAmountInput, $request, $activeShift) {
-                $subtotalSum = 0;
-                $detailsToInsert = [];
-
-                foreach ($items as $item) {
-                    // Lock product for update to prevent race conditions
-                    $product = Product::where('id', $item['id'])->lockForUpdate()->first();
-
-                    if (!$product || !$product->is_active) {
-                        throw new \Exception("Produk '{$item['name']}' tidak ditemukan atau non-aktif.");
-                    }
-
-                    if ($product->stock < $item['quantity']) {
-                        throw new \Exception("Stok produk '{$product->name}' tidak mencukupi (Tersedia: {$product->stock}, Diminta: {$item['quantity']}).");
-                    }
-
-                    $lineSubtotal = (float) $product->selling_price * (int) $item['quantity'];
-                    $subtotalSum += $lineSubtotal;
-
-                    // Deduct stock atomically
-                    $product->decrement('stock', (int) $item['quantity']);
-
-                    $detailsToInsert[] = [
-                        'app_product_id' => $product->id,
-                        'product_name' => $product->name,
-                        'sku' => $product->sku,
-                        'quantity' => (int) $item['quantity'],
-                        'purchase_price' => $product->purchase_price,
-                        'selling_price' => $product->selling_price,
-                        'subtotal' => $lineSubtotal,
-                    ];
-                }
-
-                $finalAmount = max(0, $subtotalSum - $discountAmount);
-
-                if ($paymentMethod === 'qris') {
-                    $paidAmount = $finalAmount;
-                    $changeAmount = 0;
-                } else {
-                    $paidAmount = $paidAmountInput;
-                    if ($paidAmount < $finalAmount) {
-                        throw new \Exception("Nominal pembayaran Tunai (Rp" . number_format($paidAmount, 0, ',', '.') . ") kurang dari total belanja (Rp" . number_format($finalAmount, 0, ',', '.') . ").");
-                    }
-                    $changeAmount = $paidAmount - $finalAmount;
-                }
-
-                // Generate Invoice Number.
-                // Lock today's transaction rows for update so concurrent checkouts
-                // serialize on the sequence calculation and cannot produce the same
-                // number. Format is preserved so existing receipts/tests stay valid.
-                $todayStr = now()->format('Ymd');
-                $latestTransaction = Transaction::whereDate('created_at', now()->today())
-                    ->lockForUpdate()
-                    ->latest('id')
-                    ->first();
-                $seq = $latestTransaction ? ((int) substr($latestTransaction->invoice_number, -4)) + 1 : 1;
-                $invoiceNumber = 'INV/' . $todayStr . '/' . str_pad($seq, 4, '0', STR_PAD_LEFT);
-
-                $trx = Transaction::create([
-                    'invoice_number' => $invoiceNumber,
-                    'app_user_id' => auth()->id(),
-                    'app_shift_id' => $activeShift?->id,
-                    'total_amount' => $subtotalSum,
-                    'discount_amount' => $discountAmount,
-                    'tax_amount' => 0,
-                    'final_amount' => $finalAmount,
-                    'payment_method' => $paymentMethod,
-                    'paid_amount' => $paidAmount,
-                    'change_amount' => $changeAmount,
-                    'notes' => $request->notes ?? null,
-                ]);
-
-                foreach ($detailsToInsert as $detail) {
-                    TransactionDetail::create([
-                        'app_transaction_id' => $trx->id,
-                        'app_product_id' => $detail['app_product_id'],
-                        'quantity' => $detail['quantity'],
-                        'purchase_price' => $detail['purchase_price'],
-                        'selling_price' => $detail['selling_price'],
-                        'subtotal' => $detail['subtotal'],
-                    ]);
-                }
-
-                return $trx->load(['details.product', 'user']);
-                });
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Transaksi berhasil diproses!',
-                    'transaction' => $transaction,
-                    'receipt_html' => view('pos.receipt_content', ['transaction' => $transaction, 'is_modal' => true])->render()
-                ]);
-
-            } catch (\Illuminate\Database\QueryException $e) {
-                // Duplicate invoice number from a concurrent checkout: loop back
-                // to regenerate the sequence and retry, up to $maxAttempts.
-                $isDuplicateInvoice = str_contains($e->getMessage(), 'invoice_number');
-                if ($isDuplicateInvoice && $attempt < $maxAttempts) {
-                    continue;
-                }
-
-                // Log the real SQL error so genuine failures (missing columns,
-                // constraint issues, etc.) are diagnosable instead of hidden
-                // behind the generic user-facing message.
-                \Illuminate\Support\Facades\Log::error('POS checkout failed', [
-                    'user_id' => auth()->id(),
-                    'attempt' => $attempt,
-                    'error' => $e->getMessage(),
-                ]);
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Transaksi gagal disimpan karena gangguan sistem. Silakan coba lagi.',
-                ], 422);
-            } catch (\Exception $e) {
-                // Business rule violation (stock/payment) — surface the message.
-                return response()->json([
-                    'success' => false,
-                    'message' => $e->getMessage()
-                ], 422);
-            }
-        }
+    private function payment(Request $request): array
+    {
+        return [
+            'method' => $request->payment_method,
+            'discount' => (float) ($request->discount_amount ?? 0),
+            'paid_amount' => (float) $request->paid_amount,
+        ];
     }
 
     public function showReceipt(Transaction $transaction)
     {
         // Prevent IDOR: only the cashier who owns the transaction, or a user
         // allowed to view financial reports (owner/admin), may view the receipt.
-        if ($transaction->app_user_id !== auth()->id()
-            && !auth()->user()->can('view-financial-reports')) {
+        // Open bills can be printed by any cashier (shared tables).
+        if (! $transaction->isOpen()
+            && $transaction->app_user_id !== auth()->id()
+            && $transaction->opened_by !== auth()->id()
+            && ! auth()->user()->can('view-financial-reports')) {
             abort(403);
         }
 

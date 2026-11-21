@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Controllers\CafeTableController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\ModifierGroupController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
@@ -44,6 +46,16 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('ensure.shift.open');
         Route::get('/pos/receipt/{transaction}', [PosController::class, 'showReceipt'])->name('pos.receipt');
         Route::get('/pos/stocks', [PosController::class, 'stocks'])->name('pos.stocks');
+
+        // Open bills (bayar nanti)
+        Route::middleware('ensure.shift.open')->prefix('pos/bills')->name('pos.bills.')->group(function () {
+            Route::get('/', [PosController::class, 'openBills'])->name('index');
+            Route::post('/', [PosController::class, 'storeBill'])->name('store');
+            Route::get('/{bill}', [PosController::class, 'showBill'])->name('show');
+            Route::post('/{bill}/items', [PosController::class, 'addBillItems'])->name('items');
+            Route::post('/{bill}/pay', [PosController::class, 'payBill'])->name('pay');
+            Route::post('/{bill}/cancel', [PosController::class, 'cancelBill'])->name('cancel');
+        });
     });
 
     // Shift Management
@@ -62,6 +74,16 @@ Route::middleware(['auth'])->group(function () {
     // Product Management
     Route::resource('products', ProductController::class)->except(['show'])
         ->middleware('can:manage-products');
+
+    // Menu Modifiers & Variants (size, sugar level, toppings, ...)
+    Route::resource('modifiers', ModifierGroupController::class)->except(['show'])
+        ->middleware('can:manage-products');
+
+    // Cafe Tables (dine-in orders are delivered to a table)
+    Route::middleware('can:manage-products')->group(function () {
+        Route::post('/tables/bulk', [CafeTableController::class, 'bulkStore'])->name('tables.bulk');
+        Route::resource('tables', CafeTableController::class)->only(['index', 'store', 'update', 'destroy']);
+    });
 
     // Stock In (Supplier Restock)
     Route::resource('stock-ins', StockInController::class)->only(['index', 'create', 'store'])

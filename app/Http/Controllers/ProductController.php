@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use App\Models\ModifierGroup;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -40,7 +41,8 @@ class ProductController extends Controller
     public function create()
     {
         $categories = Category::orderBy('name')->get();
-        return view('products.create', compact('categories'));
+        $modifierGroups = ModifierGroup::with('options')->orderBy('sort_order')->orderBy('name')->get();
+        return view('products.create', compact('categories', 'modifierGroups'));
     }
 
     public function store(Request $request)
@@ -55,6 +57,8 @@ class ProductController extends Controller
             'stock' => 'required|integer|min:0',
             'min_stock' => 'required|integer|min:0',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'modifier_group_ids' => 'nullable|array',
+            'modifier_group_ids.*' => 'integer|exists:app_modifier_groups,id',
         ]);
 
         $sku = $request->sku ?: 'SKU-' . strtoupper(Str::random(6));
@@ -65,7 +69,7 @@ class ProductController extends Controller
             $imagePath = $request->file('image')->store('products', 'public');
         }
 
-        Product::create([
+        $product = Product::create([
             'app_category_id' => $request->app_category_id,
             'sku' => $sku,
             'barcode' => $barcode,
@@ -78,13 +82,17 @@ class ProductController extends Controller
             'is_active' => $request->has('is_active') ? true : false,
         ]);
 
+        $product->modifierGroups()->sync($this->modifierSyncData($request));
+
         return redirect()->route('products.index')->with('success', 'Produk berhasil ditambahkan.');
     }
 
     public function edit(Product $product)
     {
         $categories = Category::orderBy('name')->get();
-        return view('products.edit', compact('product', 'categories'));
+        $modifierGroups = ModifierGroup::with('options')->orderBy('sort_order')->orderBy('name')->get();
+        $product->load('modifierGroups');
+        return view('products.edit', compact('product', 'categories', 'modifierGroups'));
     }
 
     public function update(Request $request, Product $product)
@@ -99,6 +107,9 @@ class ProductController extends Controller
             'stock' => 'required|integer|min:0',
             'min_stock' => 'required|integer|min:0',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'remove_image' => 'nullable|boolean',
+            'modifier_group_ids' => 'nullable|array',
+            'modifier_group_ids.*' => 'integer|exists:app_modifier_groups,id',
         ]);
 
         if ($request->hasFile('image')) {
@@ -108,6 +119,9 @@ class ProductController extends Controller
             }
             $imagePath = $request->file('image')->store('products', 'public');
             $product->image = $imagePath;
+        } elseif ($request->boolean('remove_image') && $product->image) {
+            Storage::disk('public')->delete($product->image);
+            $product->image = null;
         }
 
         $product->app_category_id = $request->app_category_id;
@@ -120,6 +134,8 @@ class ProductController extends Controller
         $product->min_stock = $request->min_stock;
         $product->is_active = $request->has('is_active');
         $product->save();
+
+        $product->modifierGroups()->sync($this->modifierSyncData($request));
 
         return redirect()->route('products.index')->with('success', 'Produk berhasil diperbarui.');
     }
@@ -139,5 +155,16 @@ class ProductController extends Controller
 
         $product->delete();
         return redirect()->route('products.index')->with('success', 'Produk berhasil dihapus.');
+    }
+
+    /**
+     * Pivot payload keeping the order in which groups were ticked.
+     */
+    private function modifierSyncData(Request $request): array
+    {
+        return collect($request->input('modifier_group_ids', []))
+            ->values()
+            ->mapWithKeys(fn ($id, $i) => [(int) $id => ['sort_order' => $i]])
+            ->all();
     }
 }

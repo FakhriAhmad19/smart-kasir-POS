@@ -320,7 +320,7 @@
                             <tr>
                                 <td class="ps-4 fw-bold text-primary font-monospace fs-6 text-ellipsis">
                                     {{ $trx->invoice_number }}</td>
-                                <td class="text-muted small">{{ $trx->created_at->format('d/m/Y H:i') }}</td>
+                                <td class="text-muted small">{{ ($trx->paid_at ?? $trx->created_at)->format('d/m/Y H:i') }}</td>
                                 <td class="fw-semibold text-dark">{{ $trx->user->name ?? 'Kasir' }}</td>
                                 <td>
                                     @if ($trx->payment_method === 'cash')

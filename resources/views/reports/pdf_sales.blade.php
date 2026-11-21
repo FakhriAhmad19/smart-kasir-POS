@@ -146,7 +146,7 @@
                 <tr>
                     <td class="text-center">{{ $index + 1 }}</td>
                     <td><strong>{{ $trx->invoice_number }}</strong></td>
-                    <td>{{ $trx->created_at->format('d/m/Y H:i') }}</td>
+                    <td>{{ ($trx->paid_at ?? $trx->created_at)->format('d/m/Y H:i') }}</td>
                     <td>{{ $trx->user->name ?? '-' }}</td>
                     <td class="text-center" style="text-transform: uppercase;">{{ $trx->payment_method }}</td>
                     <td class="text-right">Rp{{ number_format($trx->total_amount, 0, ',', '.') }}</td>

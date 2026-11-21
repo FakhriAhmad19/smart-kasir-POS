@@ -17,6 +17,9 @@ class TransactionDetail extends Model
         'quantity',
         'purchase_price',
         'selling_price',
+        'modifiers',
+        'modifier_total',
+        'notes',
         'subtotal',
     ];
 
@@ -24,6 +27,8 @@ class TransactionDetail extends Model
         'purchase_price' => 'decimal:2',
         'selling_price' => 'decimal:2',
         'subtotal' => 'decimal:2',
+        'modifiers' => 'array',
+        'modifier_total' => 'decimal:2',
         'quantity' => 'integer',
     ];
 

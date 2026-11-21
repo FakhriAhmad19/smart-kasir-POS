@@ -108,8 +108,13 @@
                     <tbody>
                         @forelse($transactions as $trx)
                             <tr>
-                                <td class="ps-4 fw-bold text-primary font-monospace text-ellipsis">{{ $trx->invoice_number }}</td>
-                                <td class="text-muted small">{{ $trx->created_at->format('d/m/Y H:i:s') }}</td>
+                                <td class="ps-4">
+                                    <div class="fw-bold text-primary font-monospace text-ellipsis">{{ $trx->invoice_number }}</div>
+                                    <small class="text-muted text-ellipsis">
+                                        @if($trx->queue_number)#{{ $trx->queue_number }} · @endif{{ $trx->orderTypeLabel() }}{{ $trx->table_name ? ' · ' . $trx->table_name : '' }}{{ $trx->online_platform ? ' · ' . $trx->online_platform : '' }}{{ $trx->customer_name ? ' · ' . $trx->customer_name : '' }}
+                                    </small>
+                                </td>
+                                <td class="text-muted small">{{ ($trx->paid_at ?? $trx->created_at)->format('d/m/Y H:i:s') }}</td>
                                 <td class="fw-semibold text-dark">{{ $trx->user->name ?? 'Kasir' }}</td>
                                 <td>
                                     <small class="text-dark text-ellipsis">

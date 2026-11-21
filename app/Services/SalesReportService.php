@@ -22,9 +22,10 @@ class SalesReportService
         ?string $userId = null
     ) {
         $query = Transaction::with(['user', 'details.product'])
-            ->whereDate('created_at', '>=', $startDate)
-            ->whereDate('created_at', '<=', $endDate)
-            ->latest();
+            ->paid()
+            ->whereDate('paid_at', '>=', $startDate)
+            ->whereDate('paid_at', '<=', $endDate)
+            ->latest('paid_at');
 
         if ($paymentMethod) {
             $query->where('payment_method', $paymentMethod);
@@ -49,8 +50,9 @@ class SalesReportService
         ?string $paymentMethod = null,
         ?string $userId = null
     ): array {
-        $summaryQuery = Transaction::whereDate('created_at', '>=', $startDate)
-            ->whereDate('created_at', '<=', $endDate);
+        $summaryQuery = Transaction::paid()
+            ->whereDate('paid_at', '>=', $startDate)
+            ->whereDate('paid_at', '<=', $endDate);
         if ($paymentMethod) $summaryQuery->where('payment_method', $paymentMethod);
         if ($userId) $summaryQuery->where('app_user_id', $userId);
 
