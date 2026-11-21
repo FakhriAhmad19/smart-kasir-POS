@@ -70,6 +70,7 @@ class ProductController extends Controller
             $imagePath = $request->file('image')->store('products', 'public');
         }
 
+        $category = Category::findOrFail($request->app_category_id);
         $product = Product::create([
             'app_category_id' => $request->app_category_id,
             'sku' => $sku,
@@ -81,7 +82,7 @@ class ProductController extends Controller
             'min_stock' => $request->min_stock,
             'image' => $imagePath,
             'is_active' => $request->has('is_active') ? true : false,
-            'station' => $request->input('station', 'barista'),
+            'station' => $this->stationForCategory($category, $request->input('station')),
         ]);
 
         $product->modifierGroups()->sync($this->modifierSyncData($request));
@@ -136,7 +137,7 @@ class ProductController extends Controller
         $product->selling_price = $request->selling_price;
         $product->stock = $request->stock;
         $product->min_stock = $request->min_stock;
-        $product->station = $request->input('station', $product->station ?: 'barista');
+        $product->station = $this->stationForCategory($product->category, $request->input('station', $product->station));
         $product->is_active = $request->has('is_active');
         $product->save();
 
@@ -171,5 +172,14 @@ class ProductController extends Controller
             ->values()
             ->mapWithKeys(fn ($id, $i) => [(int) $id => ['sort_order' => $i]])
             ->all();
+    }
+
+    private function stationForCategory(Category $category, ?string $requested): string
+    {
+        return match ($category->slug) {
+            'minuman' => 'barista',
+            'makanan-snack' => 'kitchen',
+            default => $requested ?: 'barista',
+        };
     }
 }

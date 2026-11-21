@@ -119,7 +119,11 @@ class ProductCategorySeeder extends Seeder
             foreach ($products as $prodData) {
                 Product::firstOrCreate(
                     ['sku' => $prodData['sku']],
-                    array_merge($prodData, ['app_category_id' => $category->id, 'is_active' => true])
+                    array_merge($prodData, [
+                        'app_category_id' => $category->id,
+                        'is_active' => true,
+                        'station' => $category->slug === 'minuman' ? 'barista' : ($category->slug === 'makanan-snack' ? 'kitchen' : 'barista'),
+                    ])
                 );
             }
         }
