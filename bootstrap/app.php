@@ -12,6 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Cloudflared terminates HTTPS before forwarding to the local Laravel
+        // server. Trust the local connector so asset() / @vite() preserve
+        // the public HTTPS scheme instead of emitting mixed-content HTTP URLs.
+        $middleware->trustProxies(at: ['127.0.0.1', '::1']);
+
         // Register custom route middleware aliases used by the application.
         $middleware->alias([
             'ensure.shift.open' => \App\Http\Middleware\EnsureShiftOpen::class,

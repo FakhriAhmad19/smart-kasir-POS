@@ -18,7 +18,7 @@
                 <span class="brand-mark"><i class="bi bi-cup-hot-fill"></i></span>
                 <div>
                     <div class="brand-name">{{ \App\Models\Setting::get('store_name', 'Smart Kasir') }}</div>
-                    <div class="brand-tag" style="color: rgba(255,246,234,.6);">Café POS</div>
+                    <div class="brand-tag" style="color: rgba(245, 248, 255,.6);">Café POS</div>
                 </div>
             </div>
 

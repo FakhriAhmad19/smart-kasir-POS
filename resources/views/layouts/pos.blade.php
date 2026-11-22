@@ -12,5 +12,6 @@
     <div class="pos-container d-flex">
         {{ $slot }}
     </div>
+    @include('partials.page-guide')
 </body>
 </html>

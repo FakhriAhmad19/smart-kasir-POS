@@ -9,15 +9,15 @@
     @endphp
     <div class="hero-cafe p-4 p-md-5 mb-4">
         <div class="position-relative" style="max-width: 640px; z-index: 1;">
-            <span class="chip mb-3" style="background: rgba(255,246,234,.1); border-color: rgba(255,246,234,.18); color: #f6d3a6;">
+            <span class="chip mb-3" style="background: rgba(245, 248, 255,.1); border-color: rgba(245, 248, 255,.18); color: #bfdbfe;">
                 <i class="bi bi-cup-hot-fill"></i> {{ \App\Models\Setting::get('store_name', 'Smart Kasir') }}
             </span>
             <h2 class="mb-2" style="font-size: clamp(1.5rem, 3vw, 2.1rem);">
                 <span class="js-greeting">Halo</span>, {{ \Illuminate\Support\Str::of(auth()->user()->name)->before(' (') }}!
             </h2>
             <p class="text-muted mb-4">
-                Hari ini sudah <b style="color:#fff6ea">{{ $todayTransactionsCount }} transaksi</b> dengan omzet
-                <b style="color:#fff6ea">Rp{{ number_format($todayRevenue, 0, ',', '.') }}</b>. Semoga kedainya ramai ☕
+                Hari ini sudah <b style="color:#f5f8ff">{{ $todayTransactionsCount }} transaksi</b> dengan omzet
+                <b style="color:#f5f8ff">Rp{{ number_format($todayRevenue, 0, ',', '.') }}</b>. Semoga kedainya ramai ☕
             </p>
             <div class="d-flex flex-wrap gap-2">
                 @can('process-transaction')
@@ -32,7 +32,7 @@
                     @endif
                 @endcan
                 @can('manage-shifts')
-                    <a href="{{ route('shifts.index') }}" class="btn btn-touch px-3 gap-2" style="background: rgba(255,246,234,.1); color: #fff6ea; border: 1px solid rgba(255,246,234,.2);">
+                    <a href="{{ route('shifts.index') }}" class="btn btn-touch px-3 gap-2" style="background: rgba(245, 248, 255,.1); color: #f5f8ff; border: 1px solid rgba(245, 248, 255,.2);">
                         <i class="bi bi-clock-history"></i> Shift & Laci
                     </a>
                 @endcan
@@ -52,7 +52,7 @@
                             Rp{{ number_format($todayRevenue, 0, ',', '.') }}</h3>
                     </div>
                     <div class="rounded-4 p-3 d-flex align-items-center justify-content-center shadow-sm"
-                        style="width: 54px; height: 54px; background: var(--caramel-100); color: var(--roast-600);">
+                        style="width: 54px; height: 54px; background: var(--accent-100); color: var(--brand-600);">
                         <i class="bi bi-cash-stack fs-3"></i>
                     </div>
                 </div>
@@ -75,7 +75,7 @@
                             Rp{{ number_format($todayNetProfit, 0, ',', '.') }}</h3>
                     </div>
                     <div class="rounded-4 p-3 d-flex align-items-center justify-content-center shadow-sm"
-                        style="width: 54px; height: 54px; background: rgba(16, 185, 129, 0.12); color: #10b981;">
+                        style="width: 54px; height: 54px; background: #e6e8ff; color: #4338ca;">
                         <i class="bi bi-graph-up-arrow fs-3"></i>
                     </div>
                 </div>
@@ -98,7 +98,7 @@
                             Rp{{ number_format($todayCashRevenue, 0, ',', '.') }}</h3>
                     </div>
                     <div class="rounded-4 p-3 d-flex align-items-center justify-content-center shadow-sm"
-                        style="width: 54px; height: 54px; background: rgba(245, 158, 11, 0.12); color: #f59e0b;">
+                        style="width: 54px; height: 54px; background: #dbeafe; color: #1d4ed8;">
                         <i class="bi bi-wallet2 fs-3"></i>
                     </div>
                 </div>
@@ -118,7 +118,7 @@
                             Rp{{ number_format($todayQrisRevenue, 0, ',', '.') }}</h3>
                     </div>
                     <div class="rounded-4 p-3 d-flex align-items-center justify-content-center shadow-sm"
-                        style="width: 54px; height: 54px; background: rgba(14, 165, 233, 0.12); color: #0ea5e9;">
+                        style="width: 54px; height: 54px; background: #e0f2fe; color: #0284c7;">
                         <i class="bi bi-qr-code-scan fs-3"></i>
                     </div>
                 </div>
@@ -206,9 +206,9 @@
                 <div
                     class="card-header bg-white border-0 py-3.5 px-4 d-flex justify-content-between align-items-center border-bottom border-light">
                     <h6 class="fw-bold mb-0 text-dark d-flex align-items-center gap-2">
-                        <i class="bi bi-trophy-fill text-warning fs-5"></i> Top 5 Produk Terlaris (Best Seller)
+                        <i class="bi bi-trophy-fill text-primary fs-5"></i> Top 5 Produk Terlaris (Best Seller)
                     </h6>
-                    <span class="badge bg-warning bg-opacity-10 text-dark px-3 py-1 rounded-pill fw-semibold">Bulan
+                    <span class="badge bg-primary-subtle text-primary-emphasis px-3 py-1 rounded-pill fw-semibold">Bulan
                         Ini</span>
                 </div>
                 <div class="card-body p-0">
@@ -229,7 +229,7 @@
                                         <td class="ps-4">
                                             @if ($index == 0)
                                                 <span
-                                                    class="badge bg-warning text-dark rounded-circle d-inline-flex align-items-center justify-content-center fw-bold shadow-sm"
+                                                    class="badge bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center fw-bold shadow-sm"
                                                     style="width: 28px; height: 28px;">🥇</span>
                                             @elseif($index == 1)
                                                 <span
@@ -311,7 +311,7 @@
                                 <td>
                                     @if ($trx->payment_method === 'cash')
                                         <span
-                                            class="badge bg-warning bg-opacity-10 text-warning px-3 py-1 rounded-pill fw-bold">TUNAI</span>
+                                            class="badge bg-primary-subtle text-primary-emphasis px-3 py-1 rounded-pill fw-bold">TUNAI</span>
                                     @else
                                         <span
                                             class="badge bg-info bg-opacity-10 text-info px-3 py-1 rounded-pill fw-bold">QRIS</span>

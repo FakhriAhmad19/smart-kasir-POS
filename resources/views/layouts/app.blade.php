@@ -145,11 +145,11 @@
                 <a href="{{ route('profile.edit') }}" class="d-flex align-items-center gap-2 min-w-0 text-decoration-none">
                     <span class="avatar">{{ $initials ?: 'U' }}</span>
                     <span class="min-w-0">
-                        <span class="d-block fw-semibold text-truncate" style="font-size: .85rem; color: #fff6ea;">{{ $authUser->name }}</span>
+                        <span class="d-block fw-semibold text-truncate" style="font-size: .85rem; color: #f5f8ff;">{{ $authUser->name }}</span>
                         <span class="d-block text-capitalize" style="font-size: .7rem; color: var(--sidebar-muted);">{{ $roleName }}</span>
                     </span>
                 </a>
-                <button type="button" class="btn btn-sm p-1 border-0 js-logout-btn" style="color: #f0b3a8;" title="Keluar" aria-label="Keluar">
+                <button type="button" class="btn btn-sm p-1 border-0 js-logout-btn" style="color: #fca5a5;" title="Keluar" aria-label="Keluar">
                     <i class="bi bi-box-arrow-right fs-5"></i>
                 </button>
             </div>
@@ -227,6 +227,8 @@
         @csrf
     </form>
 
+    @include('partials.page-guide')
+
     <!-- Flash Messages via SweetAlert -->
     @if(session('success'))
         <script>
@@ -235,7 +237,7 @@
                     icon: 'success',
                     title: 'Berhasil',
                     text: @json(session('success')),
-                    confirmButtonColor: '#8b5a3c',
+                    confirmButtonColor: '#2563eb',
                     confirmButtonText: 'OK',
                 });
             });
@@ -249,7 +251,7 @@
                     icon: 'error',
                     title: 'Gagal',
                     text: @json(session('error')),
-                    confirmButtonColor: '#8b5a3c',
+                    confirmButtonColor: '#2563eb',
                     confirmButtonText: 'OK',
                 });
             });
@@ -269,8 +271,8 @@
                         showCancelButton: true,
                         confirmButtonText: 'Ya, keluar',
                         cancelButtonText: 'Batal',
-                        confirmButtonColor: '#b84a3a',
-                        cancelButtonColor: '#8c7765',
+                        confirmButtonColor: '#dc2626',
+                        cancelButtonColor: '#64748b',
                         reverseButtons: true,
                     }).then(function (result) {
                         if (result.isConfirmed) {

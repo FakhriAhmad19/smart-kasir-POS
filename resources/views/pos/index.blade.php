@@ -480,7 +480,7 @@
                     icon: icon,
                     title: icon === 'success' ? 'Berhasil' : (icon === 'warning' ? 'Perhatian' : 'Gagal'),
                     text: message,
-                    confirmButtonColor: '#8b5a3c',
+                    confirmButtonColor: '#2563eb',
                     confirmButtonText: 'OK',
                 });
             }
@@ -1242,7 +1242,7 @@
                         showCancelButton: true,
                         confirmButtonText: 'Ya, tambahkan',
                         cancelButtonText: 'Batal',
-                        confirmButtonColor: '#8b5a3c',
+                        confirmButtonColor: '#2563eb',
                     });
                     if (answer.isConfirmed) sendItemsToBill(existing);
                     return;
@@ -1411,7 +1411,7 @@
                     showCancelButton: true,
                     confirmButtonText: 'Batalkan Bill',
                     cancelButtonText: 'Kembali',
-                    confirmButtonColor: '#b84a3a',
+                    confirmButtonColor: '#dc2626',
                 });
                 if (!result.isConfirmed) return;
                 try {

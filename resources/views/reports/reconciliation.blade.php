@@ -112,7 +112,7 @@
                             <td class="text-ellipsis">{{ $trx->user->name ?? 'Kasir' }}</td>
                             <td>
                                 @if($trx->payment_method === 'cash')
-                                    <span class="badge bg-warning bg-opacity-10 text-warning px-2.5 py-1">TUNAI</span>
+                                    <span class="badge bg-primary-subtle text-primary-emphasis px-2.5 py-1">TUNAI</span>
                                 @else
                                     <span class="badge bg-info bg-opacity-10 text-info px-2.5 py-1">QRIS</span>
                                 @endif
